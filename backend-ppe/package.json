@@ -1,0 +1,23 @@
+{
+  "name": "backend-ppe",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/Abeeby/Application-de-Gestion-pour-une-PPE#readme",
+  "bugs": {
+    "url": "https://github.com/Abeeby/Application-de-Gestion-pour-une-PPE/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abeeby/Application-de-Gestion-pour-une-PPE.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
