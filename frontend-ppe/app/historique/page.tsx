@@ -5,8 +5,14 @@ import { useState, useEffect } from 'react'
 const categories = ['Entretien', 'Assurances', 'Nettoyage', 'Eau & Electricite', 'Administration', 'Reparations']
 const anneesPossibles = [2022, 2023, 2024, 2025]
 
+type Depense = {
+  annee: number
+  categorie: string
+  montant: number
+}
+
 export default function Historique() {
-  const [depenses, setDepenses] = useState([])
+  const [depenses, setDepenses] = useState<Depense[]>([])
   const [anneeDebut, setAnneeDebut] = useState(2022)
   const [anneeFin, setAnneeFin] = useState(2025)
 
@@ -18,12 +24,12 @@ export default function Historique() {
 
   const annees = anneesPossibles.filter(a => a >= anneeDebut && a <= anneeFin)
 
-  function getMontant(categorie, annee) {
+  function getMontant(categorie: string, annee: number) {
     const ligne = depenses.find(d => d.categorie === categorie && d.annee === annee)
     return ligne ? ligne.montant : 0
   }
 
-  function getTotal(annee) {
+  function getTotal(annee: number) {
     let total = 0
     for (const cat of categories) {
       total += getMontant(cat, annee)
@@ -31,9 +37,9 @@ export default function Historique() {
     return total
   }
 
-  function calculerEcart(montantAvant, montantApres) {
+  function calculerEcart(montantAvant: number, montantApres: number) {
     if (montantAvant === 0) return 0
-    return (((montantApres - montantAvant) / montantAvant) * 100).toFixed(1)
+    return Number((((montantApres - montantAvant) / montantAvant) * 100).toFixed(1))
   }
 
   return (
@@ -80,14 +86,14 @@ export default function Historique() {
               <td>{cat}</td>
               {annees.map((annee, i) => {
                 const montant = getMontant(cat, annee)
-                const montantPrev = i > 0 ? getMontant(cat, annees[i - 1]) : null
-                const ecart = montantPrev !== null ? calculerEcart(montantPrev, montant) : null
+                const montantPrev = i > 0 ? getMontant(cat, annees[i - 1]) : 0
+                const ecart = calculerEcart(montantPrev, montant)
                 return (
                   <>
                     <td key={annee} style={{ textAlign: 'right' }}>{montant} CHF</td>
                     {i > 0 && (
                       <td key={'ecart-' + annee} style={{ textAlign: 'right', color: ecart > 0 ? '#dc2626' : '#16a34a', fontWeight: 'bold' }}>
-                        {ecart > 0 ? '+' : ''}{ecart}%
+                        {ecart > 0 ? '+' : ''}{ecart.toFixed(1)}%
                       </td>
                     )}
                   </>
@@ -101,14 +107,14 @@ export default function Historique() {
             <td>Total</td>
             {annees.map((annee, i) => {
               const total = getTotal(annee)
-              const totalPrev = i > 0 ? getTotal(annees[i - 1]) : null
-              const ecart = totalPrev !== null ? calculerEcart(totalPrev, total) : null
+              const totalPrev = i > 0 ? getTotal(annees[i - 1]) : 0
+              const ecart = calculerEcart(totalPrev, total)
               return (
                 <>
                   <td key={annee} style={{ textAlign: 'right' }}>{total} CHF</td>
                   {i > 0 && (
                     <td key={'ecart-total-' + annee} style={{ textAlign: 'right', color: ecart > 0 ? '#dc2626' : '#16a34a' }}>
-                      {ecart > 0 ? '+' : ''}{ecart}%
+                      {ecart > 0 ? '+' : ''}{ecart.toFixed(1)}%
                     </td>
                   )}
                 </>
