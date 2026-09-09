@@ -1,4 +1,5 @@
 import express from 'express'
+import { saisies, appartements, categories, validerDepense, ajouterSaisie } from './saisies.js'
 
 const app = express()
 const PORT = Number(process.env.PORT ?? 3001)
@@ -169,6 +170,31 @@ app.get('/api/depenses/historique', (req, res) => {
   const resultat = depenses.filter((depense) => depense.annee >= anneeDebut && depense.annee <= anneeFin)
 
   res.json(resultat)
+})
+
+// --- KAN-19 : module de saisie des depenses ---
+
+// Donne les listes a afficher dans le formulaire
+app.get('/api/saisies/options', (req, res) => {
+  res.json({ categories, appartements })
+})
+
+// Liste les depenses deja saisies
+app.get('/api/saisies', (req, res) => {
+  res.json(saisies)
+})
+
+// Enregistre une nouvelle depense
+app.post('/api/saisies', (req, res) => {
+  const depense = req.body ?? {}
+  const erreurs = validerDepense(depense)
+
+  if (erreurs.length > 0) {
+    return res.status(400).json({ erreurs })
+  }
+
+  const nouvelle = ajouterSaisie(depense)
+  res.status(201).json(nouvelle)
 })
 
 app.post('/api/auth/login', (req, res) => {
