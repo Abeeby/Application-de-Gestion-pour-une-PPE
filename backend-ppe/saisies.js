@@ -32,6 +32,12 @@ export function validerDepense(depense) {
   return erreurs
 }
 
+// Vide la liste des saisies
+// Sert aux tests, pour que chacun reparte d'une liste vide
+export function viderSaisies() {
+  saisies.length = 0
+}
+
 // Enregistre une depense et lui donne un numero
 export function ajouterSaisie(depense) {
   const nouvelle = {
