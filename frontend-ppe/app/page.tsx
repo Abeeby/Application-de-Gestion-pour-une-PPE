@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { LayoutDashboard, Zap, BarChart2, Folder, Users, Settings, LogOut, FileText } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -26,6 +28,13 @@ export default function HomePage() {
   const [email, setEmail] = useState('admin@ppe.fr')
   const [role, setRole] = useState<Role>('admin')
   const [token, setToken] = useState('')
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem('ppe_token')
+    if (savedToken) {
+      setToken(savedToken)
+    }
+  }, [])
   const [user, setUser] = useState<User | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [transactions, setTransactions] = useState<any[]>([])
@@ -92,6 +101,7 @@ export default function HomePage() {
       }
 
       setToken(data.token)
+      localStorage.setItem('ppe_token', data.token)
       setUser(data.user)
       await fetchProtectedData(data.token)
     } catch (loginError) {
@@ -169,97 +179,131 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-8 flex items-center justify-between rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+      {/* Sidebar */}
+      <aside className="w-64 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col hidden lg:flex">
+        <div className="p-6 flex items-center gap-3">
+          <div className="bg-blue-600 text-white p-2 rounded-lg font-bold text-sm">PPE</div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-blue-700">PPE</p>
-            <h1 className="mt-2 text-3xl font-bold">Tableau de bord financier</h1>
+            <h2 className="font-bold text-slate-900 leading-tight">PPE Gestion</h2>
+            <p className="text-xs text-slate-500">Gestion de copropriété</p>
           </div>
-          <div className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800">
-            {user.role === 'admin' ? 'Administrateur' : 'Copropriétaire'}
-          </div>
-        </header>
+        </div>
 
-        {summary ? (
-          <section className="grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <p className="text-sm text-slate-500">Solde total</p>
-              <p className="mt-2 text-2xl font-bold">{currency.format(summary.totalBalance)}</p>
-            </div>
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <p className="text-sm text-slate-500">Revenus</p>
-              <p className="mt-2 text-2xl font-bold text-emerald-600">{currency.format(summary.totalIncome)}</p>
-            </div>
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <p className="text-sm text-slate-500">Dépenses</p>
-              <p className="mt-2 text-2xl font-bold text-rose-600">{currency.format(summary.totalExpenses)}</p>
-            </div>
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <p className="text-sm text-slate-500">Prévision mensuelle</p>
-              <p className="mt-2 text-2xl font-bold text-sky-600">{currency.format(summary.monthlyForecast)}</p>
-            </div>
-          </section>
-        ) : null}
+        <nav className="flex-1 px-4 space-y-1">
+          <Link href="/" className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-600 text-white transition text-sm font-medium shadow-sm">
+            <LayoutDashboard className="h-5 w-5" /> Tableau de bord
+          </Link>
+          <Link href="/electricite" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 transition text-sm font-medium">
+            <Zap className="h-5 w-5" /> Électricité
+          </Link>
+        </nav>
 
-        <section className="mt-8 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Transactions</h2>
-              <span className="text-sm text-slate-500">{transactions.length} éléments</span>
-            </div>
+        <div className="p-4 space-y-1 border-t border-slate-200">
+          <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 hover:bg-slate-100 transition text-sm font-medium">
+            <Settings className="h-5 w-5" /> Paramètres
+          </a>
+          <button onClick={() => { setToken(''); localStorage.removeItem('ppe_token'); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-rose-600 hover:bg-rose-50 transition text-sm font-medium">
+            <LogOut className="h-5 w-5" /> Déconnexion
+          </button>
+        </div>
+      </aside>
 
-            <div className="space-y-3">
-              {transactions.map((transaction) => (
-                <div key={transaction.id} className="flex items-center justify-between rounded-xl border border-slate-200 p-3">
-                  <div>
-                    <p className="font-medium">{transaction.label}</p>
-                    <p className="text-sm text-slate-500">{transaction.category} • {transaction.date}</p>
-                  </div>
-                  <span className={`font-semibold ${transaction.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {transaction.type === 'income' ? '+' : '-'}
-                    {currency.format(transaction.amount)}
-                  </span>
-                </div>
-              ))}
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        <div className="p-8 max-w-7xl mx-auto space-y-8">
+          <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-blue-700">PPE</p>
+              <h1 className="mt-2 text-3xl font-bold">Tableau de bord financier</h1>
             </div>
-          </div>
+            <div className="flex gap-4 items-center">
+              <div className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800">
+                {user.role === 'admin' ? 'Administrateur' : 'Copropriétaire'}
+              </div>
+            </div>
+          </header>
 
-          <div className="space-y-6">
+          {summary ? (
+            <section className="grid gap-4 md:grid-cols-4">
+              <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <p className="text-sm text-slate-500">Solde total</p>
+                <p className="mt-2 text-2xl font-bold">{currency.format(summary.totalBalance)}</p>
+              </div>
+              <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <p className="text-sm text-slate-500">Revenus</p>
+                <p className="mt-2 text-2xl font-bold text-emerald-600">{currency.format(summary.totalIncome)}</p>
+              </div>
+              <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <p className="text-sm text-slate-500">Dépenses</p>
+                <p className="mt-2 text-2xl font-bold text-rose-600">{currency.format(summary.totalExpenses)}</p>
+              </div>
+              <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <p className="text-sm text-slate-500">Prévision mensuelle</p>
+                <p className="mt-2 text-2xl font-bold text-sky-600">{currency.format(summary.monthlyForecast)}</p>
+              </div>
+            </section>
+          ) : null}
+
+          <section className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
             <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-xl font-semibold">Budgets</h2>
-              <div className="mt-4 space-y-4">
-                {budgets.map((budget) => (
-                  <div key={budget.id}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span>{budget.category}</span>
-                      <span>{budget.progress}%</span>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Transactions</h2>
+                <span className="text-sm text-slate-500">{transactions.length} éléments</span>
+              </div>
+
+              <div className="space-y-3">
+                {transactions.map((transaction) => (
+                  <div key={transaction.id} className="flex items-center justify-between rounded-xl border border-slate-200 p-3">
+                    <div>
+                      <p className="font-medium">{transaction.label}</p>
+                      <p className="text-sm text-slate-500">{transaction.category} • {transaction.date}</p>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className="h-full rounded-full bg-blue-600"
-                        style={{ width: `${Math.min(budget.progress, 100)}%` }}
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {currency.format(budget.used)} / {currency.format(budget.planned)}
-                    </p>
+                    <span className={`font-semibold ${transaction.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {transaction.type === 'income' ? '+' : '-'}
+                      {currency.format(transaction.amount)}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-xl font-semibold">Profil</h2>
-              <div className="mt-4 space-y-2 text-sm text-slate-600">
-                <p><span className="font-medium text-slate-900">Nom :</span> {user.name}</p>
-                <p><span className="font-medium text-slate-900">Email :</span> {user.email}</p>
-                <p><span className="font-medium text-slate-900">Rôle :</span> {user.role}</p>
+            <div className="space-y-6">
+              <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <h2 className="text-xl font-semibold">Budgets</h2>
+                <div className="mt-4 space-y-4">
+                  {budgets.map((budget) => (
+                    <div key={budget.id}>
+                      <div className="mb-1 flex items-center justify-between text-sm">
+                        <span>{budget.category}</span>
+                        <span>{budget.progress}%</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                        <div
+                          className="h-full rounded-full bg-blue-600"
+                          style={{ width: `${Math.min(budget.progress, 100)}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {currency.format(budget.used)} / {currency.format(budget.planned)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <h2 className="text-xl font-semibold">Profil</h2>
+                <div className="mt-4 space-y-2 text-sm text-slate-600">
+                  <p><span className="font-medium text-slate-900">Nom :</span> {user.name}</p>
+                  <p><span className="font-medium text-slate-900">Email :</span> {user.email}</p>
+                  <p><span className="font-medium text-slate-900">Rôle :</span> {user.role}</p>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
-      </div>
-    </main>
+          </section>
+        </div>
+      </main>
+    </div>
   )
 }

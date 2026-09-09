@@ -88,6 +88,34 @@ const budgets = [
   { id: 'budget-3', category: 'Sécurité', planned: 1000, used: 320, progress: 32 },
 ]
 
+const productionsElectricite = [
+  { annee: 2023, mois: 1, productionKwh: 320, revenuChf: 64, chargesChf: 220 },
+  { annee: 2023, mois: 2, productionKwh: 380, revenuChf: 76, chargesChf: 200 },
+  { annee: 2023, mois: 3, productionKwh: 550, revenuChf: 110, chargesChf: 170 },
+  { annee: 2023, mois: 4, productionKwh: 700, revenuChf: 140, chargesChf: 150 },
+  { annee: 2023, mois: 5, productionKwh: 850, revenuChf: 170, chargesChf: 130 },
+  { annee: 2023, mois: 6, productionKwh: 1000, revenuChf: 200, chargesChf: 110 },
+  { annee: 2023, mois: 7, productionKwh: 1050, revenuChf: 210, chargesChf: 120 },
+  { annee: 2023, mois: 8, productionKwh: 950, revenuChf: 190, chargesChf: 125 },
+  { annee: 2023, mois: 9, productionKwh: 750, revenuChf: 150, chargesChf: 140 },
+  { annee: 2023, mois: 10, productionKwh: 550, revenuChf: 110, chargesChf: 170 },
+  { annee: 2023, mois: 11, productionKwh: 380, revenuChf: 76, chargesChf: 200 },
+  { annee: 2023, mois: 12, productionKwh: 280, revenuChf: 56, chargesChf: 230 },
+
+  { annee: 2024, mois: 1, productionKwh: 350, revenuChf: 70, chargesChf: 200 },
+  { annee: 2024, mois: 2, productionKwh: 420, revenuChf: 84, chargesChf: 180 },
+  { annee: 2024, mois: 3, productionKwh: 600, revenuChf: 120, chargesChf: 160 },
+  { annee: 2024, mois: 4, productionKwh: 750, revenuChf: 150, chargesChf: 140 },
+  { annee: 2024, mois: 5, productionKwh: 900, revenuChf: 180, chargesChf: 120 },
+  { annee: 2024, mois: 6, productionKwh: 1050, revenuChf: 210, chargesChf: 100 },
+  { annee: 2024, mois: 7, productionKwh: 1100, revenuChf: 220, chargesChf: 110 },
+  { annee: 2024, mois: 8, productionKwh: 1000, revenuChf: 200, chargesChf: 115 },
+  { annee: 2024, mois: 9, productionKwh: 800, revenuChf: 160, chargesChf: 130 },
+  { annee: 2024, mois: 10, productionKwh: 600, revenuChf: 120, chargesChf: 160 },
+  { annee: 2024, mois: 11, productionKwh: 400, revenuChf: 80, chargesChf: 190 },
+  { annee: 2024, mois: 12, productionKwh: 300, revenuChf: 60, chargesChf: 210 },
+]
+
 const getSummary = () => {
   const totalIncome = transactions
     .filter((item) => item.type === 'income')
@@ -239,6 +267,13 @@ app.post('/api/financial/budgets', requireAuth, requireRole('admin'), (req, res)
   budgets.push(nextBudget)
 
   res.status(201).json({ budget: nextBudget })
+})
+
+app.get('/api/electricite/evolution', (req, res) => {
+  const annee = Number.parseInt(String(req.query.annee ?? '2024'), 10) || 2024
+  const resultat = productionsElectricite.filter((prod) => prod.annee === annee)
+
+  res.json(resultat)
 })
 
 app.listen(PORT, () => {
