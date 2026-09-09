@@ -37,10 +37,10 @@ frontend-ppe/         Application Next.js
 
 Paramètres de requête :
 
-| Paramètre | Type | Défaut | Description |
-|-----------|------|--------|-------------|
-| `anneeDebut` | number | 2022 | Première année à afficher |
-| `anneeFin` | number | 2025 | Dernière année à afficher |
+| Paramètre    | Type   | Défaut | Description               |
+| ------------ | ------ | ------ | ------------------------- |
+| `anneeDebut` | number | 2022   | Première année à afficher |
+| `anneeFin`   | number | 2025   | Dernière année à afficher |
 
 Exemple :
 
@@ -82,3 +82,7 @@ npm run dev
 ```
 
 Puis ouvrir http://localhost:3000
+
+## prototype PPE
+
+lien: https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1
