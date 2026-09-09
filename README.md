@@ -82,3 +82,33 @@ npm run dev
 ```
 
 Puis ouvrir http://localhost:3000
+
+
+# KAN-14 - Connexion de l’interface à l’API financière
+
+## Description
+
+Ce ticket a pour objectif de connecter l’interface graphique à l’API financière du projet PPE.
+
+L’interface peut ainsi récupérer les données depuis le back-end au lieu d’utiliser uniquement des données de test définies dans le front-end.
+
+## Objectif du ticket
+
+En tant que développeur front-end,  
+je veux consommer l’API financière depuis l’interface graphique,  
+afin que les écrans affichent les données retournées par le back-end.
+
+## Structure du projet
+
+```text
+projet-poo/
+├── backend-ppe/
+│   ├── index.js
+│   ├── package.json
+│   ├── package-lock.json
+│   └── node_modules/
+│
+├── frontend-ppe/
+│
+├── README.md
+└── .gitignore
