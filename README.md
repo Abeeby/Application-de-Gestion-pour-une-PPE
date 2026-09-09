@@ -4,6 +4,68 @@ Créer une application web pour simplifier la gestion financière d'une Proprié
 
 ---
 
+## KAN-19 : Module de saisie des dépenses
+
+### User story
+
+Saisie et enregistrement des dépenses : montant, date, catégorie, justificatif et appartement concerné.
+
+### Fonctionnalités
+
+- Formulaire de saisie d'une nouvelle dépense
+- Validation des champs côté serveur avec messages d'erreur
+- Tableau des dépenses déjà enregistrées
+- Listes déroulantes alimentées par le serveur (catégories et appartements)
+
+### Champs du formulaire
+
+| Champ | Type | Obligatoire | Règle |
+|-------|------|-------------|-------|
+| Montant | nombre | oui | doit être supérieur à 0 |
+| Date | date | oui | — |
+| Catégorie | liste | oui | doit exister dans la liste |
+| Appartement | liste | oui | doit exister dans la liste |
+| Justificatif | texte | non | numéro de facture, ex. `FAC-2026-001` |
+
+### API
+
+**GET** `/api/saisies/options` — les listes à afficher dans le formulaire
+
+```json
+{
+  "categories": ["Entretien", "Assurances", "..."],
+  "appartements": ["A1", "A2", "A3", "B1", "B2", "B3", "Parties communes"]
+}
+```
+
+**GET** `/api/saisies` — la liste des dépenses enregistrées
+
+**POST** `/api/saisies` — enregistre une dépense
+
+Corps de la requête :
+
+```json
+{
+  "montant": 1500,
+  "date": "2026-09-01",
+  "categorie": "Entretien",
+  "appartement": "A1",
+  "justificatif": "FAC-2026-001"
+}
+```
+
+Réponse `201` si tout va bien, `400` avec la liste des erreurs sinon :
+
+```json
+{ "erreurs": ["Le montant doit etre un nombre superieur a 0"] }
+```
+
+### Limite connue
+
+Les dépenses sont gardées en mémoire du serveur : elles disparaissent au redémarrage du backend. Le projet n'a pas encore de base de données.
+
+---
+
 ## KAN-29 : Historique pluriannuel et filtres
 
 ### User story
@@ -18,24 +80,9 @@ En tant qu'administrateur, je veux consulter l'historique des dépenses sur plus
 - Ligne de total avec écart global
 - Code couleur : rouge pour une hausse, vert pour une baisse
 
-### Structure du projet
-
-```
-backend-ppe/          API Express
-  index.js            Données et route /api/depenses/historique
-
-frontend-ppe/         Application Next.js
-  app/
-    page.tsx          Redirection vers /historique
-    historique/
-      page.tsx        Page avec les filtres et le tableau
-```
-
 ### API
 
 **GET** `/api/depenses/historique`
-
-Paramètres de requête :
 
 | Paramètre | Type | Défaut | Description |
 |-----------|------|--------|-------------|
@@ -57,11 +104,33 @@ Réponse :
 ]
 ```
 
+---
+
+## Structure des fichiers
+
+```
+backend-ppe/            API Express (port 3001)
+  index.js              Routes de l'application
+  saisies.js            KAN-19 : validation et enregistrement des dépenses
+  saisies.test.js       KAN-19 : tests
+
+frontend-ppe/           Application Next.js (port 3000)
+  app/
+    page.tsx            Connexion et tableau de bord (KAN-12)
+    saisie/
+      page.tsx          KAN-19 : formulaire de saisie
+    historique/
+      page.tsx          KAN-29 : filtres et tableau comparatif
+      calculs.ts        KAN-29 : calculs des montants et des écarts
+```
+
 ### Catégories disponibles
 
 Entretien, Assurances, Nettoyage, Eau & Electricite, Administration, Reparations
 
-### Lancer le projet
+---
+
+## Lancer le projet
 
 Le backend et le frontend doivent tourner en même temps, dans deux terminaux séparés.
 
@@ -70,7 +139,7 @@ Le backend et le frontend doivent tourner en même temps, dans deux terminaux s�
 ```bash
 cd backend-ppe
 npm install
-node index.js
+npm start
 ```
 
 **Terminal 2 — Frontend** (port 3000)
@@ -81,4 +150,23 @@ npm install
 npm run dev
 ```
 
-Puis ouvrir http://localhost:3000
+Les pages sont ensuite accessibles à ces adresses :
+
+| Page | Adresse |
+|------|---------|
+| Connexion et tableau de bord | http://localhost:3000 |
+| Saisie des dépenses | http://localhost:3000/saisie |
+| Historique des dépenses | http://localhost:3000/historique |
+
+---
+
+## Lancer les tests
+
+Les tests utilisent le testeur intégré de Node, il n'y a aucune librairie à installer.
+
+```bash
+cd backend-ppe
+npm test
+```
+
+Le serveur ne doit pas déjà tourner, sinon le port 3001 est occupé.
