@@ -123,7 +123,6 @@ frontend-ppe/           Application Next.js (port 3000)
       page.tsx          KAN-19 : formulaire de saisie
     historique/
       page.tsx          KAN-29 : filtres et tableau comparatif
-      calculs.ts        KAN-29 : calculs des montants et des écarts
 ```
 
 ### Catégories disponibles
