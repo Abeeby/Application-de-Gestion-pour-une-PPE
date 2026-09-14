@@ -84,10 +84,12 @@ En tant qu'administrateur, je veux consulter l'historique des dépenses sur plus
 
 **GET** `/api/depenses/historique`
 
-| Paramètre | Type | Défaut | Description |
-|-----------|------|--------|-------------|
-| `anneeDebut` | number | 2022 | Première année à afficher |
-| `anneeFin` | number | 2025 | Dernière année à afficher |
+Paramètres de requête :
+
+| Paramètre    | Type   | Défaut | Description               |
+| ------------ | ------ | ------ | ------------------------- |
+| `anneeDebut` | number | 2022   | Première année à afficher |
+| `anneeFin`   | number | 2025   | Dernière année à afficher |
 
 Exemple :
 
@@ -170,3 +172,9 @@ npm test
 ```
 
 Le serveur ne doit pas déjà tourner, sinon le port 3001 est occupé.
+
+---
+
+## prototype PPE
+
+lien: https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1
