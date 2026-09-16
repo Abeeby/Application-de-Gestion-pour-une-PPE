@@ -135,6 +135,65 @@ En tant que membre de la PPE (administrateur ou copropriétaire), je veux que l'
 
 ---
 
+## KAN-38 : Validations et tests fonctionnels des projets spécifiques
+
+### User story
+
+En tant qu'administrateur, je veux que la saisie des projets spécifiques soit validée selon des règles métier strictes et que des tests fonctionnels automatisés garantissent le bon fonctionnement et la sécurité du système.
+
+### Règles de validation
+
+| Champ | Type | Obligatoire | Règles de validation |
+|---|---|---|---|
+| Titre | texte | oui | 3 à 100 caractères, non vide |
+| Description | texte | non | Max 500 caractères |
+| Budget total | nombre | oui | Strictement supérieur à 0 (CHF) |
+| Montant dépensé | nombre | non | Supérieur ou égal à 0 (défaut: 0) |
+| Progression | nombre | non | Pourcentage entre 0 et 100 % (calculé automatiquement si omis) |
+| Statut | liste | oui | Valeur parmi : `Planifié`, `En cours`, `Terminé`, `En attente`, `Suspendu` |
+| Date de début | date | oui | Format AAAA-MM-JJ valide |
+| Fin estimée | date | non | Format AAAA-MM-JJ valide, doit être postérieure ou égale à la date de début |
+| Responsable | texte | oui | Au moins 2 caractères (ex: régie, prestataire) |
+
+### API Projets
+
+| Méthode | Route | Accès / Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/projets/droits` | Authentifié | Profil des droits de l'utilisateur sur les projets et statuts disponibles |
+| `GET` | `/api/projets` | Admin & Copropriétaire | Liste de tous les projets avec calculs dérivés (solde restant, dépassement) |
+| `GET` | `/api/projets/:id` | Admin & Copropriétaire | Détail d'un projet spécifique par son identifiant |
+| `POST` | `/api/projets` | Admin uniquement | Création d'un projet avec validation complète (201 en succès, 400 si invalide) |
+| `PUT` | `/api/projets/:id` | Admin uniquement | Modification d'un projet avec validation (200 en succès, 400 si invalide) |
+| `DELETE` | `/api/projets/:id` | Admin uniquement | Suppression définitive d'un projet (200 en succès) |
+
+Exemple de réponse d'erreur de validation (code `400 Bad Request`) :
+
+```json
+{
+  "erreurs": [
+    "Le titre du projet doit comporter au moins 3 caractères",
+    "Le budget total doit être un nombre supérieur à 0",
+    "La date de fin ne peut pas être antérieure à la date de début"
+  ]
+}
+```
+
+### Tests automatisés (Suite de tests KAN-38 & KAN-37)
+
+Le projet intègre une suite de 48 tests unitaires et fonctionnels (exécutables via `npm test` ou `node --test`) couvrant :
+1. **Validations métier (`validerProjet`)** : conformité des données, rejets des montants négatifs/nuls, dates incohérentes, statuts invalides, gestion des bornes 0-100%.
+2. **Sécurité RBAC (`verifierDroitProjet`, `getDroitsUtilisateur`)** : contrôle strict des permissions pour l'administrateur (tous droits) et le copropriétaire (lecture seule).
+3. **Cycle de vie CRUD (`ajouterProjet`, `modifierProjet`, `supprimerProjet`)** : création d'identifiants uniques, calculs automatiques de progression et de solde restant, réinitialisation pour l'isolation des tests.
+
+Pour exécuter la suite de tests :
+
+```bash
+cd backend-ppe
+npm test
+```
+
+---
+
 ## Structure des fichiers
 
 ```
