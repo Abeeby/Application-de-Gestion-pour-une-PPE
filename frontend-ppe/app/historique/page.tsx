@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 
 const categories = ['Entretien', 'Assurances', 'Nettoyage', 'Eau & Electricite', 'Administration', 'Reparations']
 const anneesPossibles = [2022, 2023, 2024, 2025]
@@ -73,10 +73,10 @@ export default function Historique() {
           <tr>
             <th>Catégorie</th>
             {annees.map((annee, i) => (
-              <>
-                <th key={annee}>{annee}</th>
-                {i > 0 && <th key={'ecart-' + annee}>Écart {annees[i-1]}→{annee}</th>}
-              </>
+              <Fragment key={annee}>
+                <th>{annee}</th>
+                {i > 0 && <th>Écart {annees[i - 1]}→{annee}</th>}
+              </Fragment>
             ))}
           </tr>
         </thead>
@@ -89,14 +89,14 @@ export default function Historique() {
                 const montantPrev = i > 0 ? getMontant(cat, annees[i - 1]) : 0
                 const ecart = calculerEcart(montantPrev, montant)
                 return (
-                  <>
-                    <td key={annee} style={{ textAlign: 'right' }}>{montant} CHF</td>
+                  <Fragment key={annee}>
+                    <td style={{ textAlign: 'right' }}>{montant} CHF</td>
                     {i > 0 && (
-                      <td key={'ecart-' + annee} style={{ textAlign: 'right', color: ecart > 0 ? '#dc2626' : '#16a34a', fontWeight: 'bold' }}>
+                      <td style={{ textAlign: 'right', color: ecart > 0 ? '#dc2626' : '#16a34a', fontWeight: 'bold' }}>
                         {ecart > 0 ? '+' : ''}{ecart.toFixed(1)}%
                       </td>
                     )}
-                  </>
+                  </Fragment>
                 )
               })}
             </tr>
@@ -110,14 +110,14 @@ export default function Historique() {
               const totalPrev = i > 0 ? getTotal(annees[i - 1]) : 0
               const ecart = calculerEcart(totalPrev, total)
               return (
-                <>
-                  <td key={annee} style={{ textAlign: 'right' }}>{total} CHF</td>
+                <Fragment key={annee}>
+                  <td style={{ textAlign: 'right' }}>{total} CHF</td>
                   {i > 0 && (
-                    <td key={'ecart-total-' + annee} style={{ textAlign: 'right', color: ecart > 0 ? '#dc2626' : '#16a34a' }}>
+                    <td style={{ textAlign: 'right', color: ecart > 0 ? '#dc2626' : '#16a34a' }}>
                       {ecart > 0 ? '+' : ''}{ecart.toFixed(1)}%
                     </td>
                   )}
-                </>
+                </Fragment>
               )
             })}
           </tr>

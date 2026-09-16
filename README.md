@@ -110,10 +110,10 @@ En tant qu'administrateur, je veux consulter l'historique des dépenses sur plus
 
 Paramètres de requête :
 
-| Paramètre    | Type   | Défaut | Description               |
-| ------------ | ------ | ------ | ------------------------- |
-| `anneeDebut` | number | 2022   | Première année à afficher |
-| `anneeFin`   | number | 2025   | Dernière année à afficher |
+| Paramètre     | Type   | Défaut | Description                  |
+| -------------- | ------ | ------- | ---------------------------- |
+| `anneeDebut` | number | 2022    | Première année à afficher |
+| `anneeFin`   | number | 2025    | Dernière année à afficher |
 
 Exemple :
 
@@ -132,6 +132,33 @@ Réponse :
 
 ---
 
+## KAN-37 : Gestion des droits sur les projets spécifiques
+
+### User story
+
+En tant que membre de la PPE (administrateur ou copropriétaire), je veux que l'accès aux projets spécifiques et aux actions de gestion soit contrôlé selon mon rôle, afin de garantir la sécurité des données et le respect de la gouvernance de la copropriété.
+
+### Matrice de contrôle d'accès (RBAC)
+
+| Action | Administrateur (`admin`) | Copropriétaire (`owner`) | Non authentifié |
+|---|---|---|---|
+| Consulter les projets (`GET /api/projets`) | ✅ Autorisé | ✅ Autorisé (Lecture seule) | ❌ 401 Non authentifié |
+| Consulter le détail d'un projet (`GET /api/projets/:id`) | ✅ Autorisé | ✅ Autorisé (Lecture seule) | ❌ 401 Non authentifié |
+| Vérifier ses droits (`GET /api/projets/droits`) | ✅ `{ canCreate: true, canEdit: true, canDelete: true }` | ✅ `{ canCreate: false, canEdit: false, canDelete: false }` | ❌ 401 Non authentifié |
+| Créer un projet (`POST /api/projets`) | ✅ Autorisé (201) | ❌ 403 Accès refusé pour ce rôle | ❌ 401 Non authentifié |
+| Modifier un projet (`PUT /api/projets/:id`) | ✅ Autorisé (200) | ❌ 403 Accès refusé pour ce rôle | ❌ 401 Non authentifié |
+| Supprimer un projet (`DELETE /api/projets/:id`) | ✅ Autorisé (200) | ❌ 403 Accès refusé pour ce rôle | ❌ 401 Non authentifié |
+
+### Fonctionnalités de gestion des droits
+
+- Sécurisation des routes API avec les middlewares `requireAuth` et `requireRole('admin')`.
+- Contrôle côté client dans l'interface (`frontend-ppe/app/projets/page.tsx`) :
+  - **Administrateur** : affichage du badge « Administrateur (Droits complets) », accès au bouton « + Nouveau projet », aux boutons « Modifier » et « Supprimer », ainsi qu'au formulaire complet d'édition.
+  - **Copropriétaire** : affichage du badge « Copropriétaire (Lecture seule) », bandeau explicatif de gouvernance, boutons de modification/création masqués ou désactivés avec mention explicite.
+  - Sélecteur de rôle instantané dans l'en-tête permettant de basculer et tester immédiatement les deux comportements.
+
+---
+
 ## Structure des fichiers
 
 ```
@@ -139,6 +166,8 @@ backend-ppe/            API Express (port 3001)
   index.js              Routes de l'application
   saisies.js            KAN-19 : validation et enregistrement des dépenses
   saisies.test.js       KAN-19 : tests
+  projets.js            KAN-37 : gestion des droits et modèle de projets
+  projets.test.js       Tests du backend
 
 frontend-ppe/           Application Next.js (port 3000)
   app/
@@ -147,6 +176,8 @@ frontend-ppe/           Application Next.js (port 3000)
       page.tsx          KAN-19 : formulaire de saisie
     historique/
       page.tsx          KAN-29 : filtres et tableau comparatif
+    projets/
+      page.tsx          KAN-37 : suivi des projets et gestion des droits
 ```
 
 ### Catégories disponibles
@@ -182,22 +213,16 @@ Les pages sont ensuite accessibles à ces adresses :
 | Connexion et tableau de bord | http://localhost:3000 |
 | Saisie des dépenses | http://localhost:3000/saisie |
 | Historique des dépenses | http://localhost:3000/historique |
+| Projets spécifiques PPE | http://localhost:3000/projets |
 
 ---
 
+Voici le lien du prototype:
+
+lien: https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1
 ## Lancer les tests
 
 Les tests utilisent le testeur intégré de Node, il n'y a aucune librairie à installer.
 
-```bash
-cd backend-ppe
-npm test
 ```
-
-Le serveur ne doit pas déjà tourner, sinon le port 3001 est occupé.
-
----
-
-## prototype PPE
-
-lien: https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1
+Puis ouvrir http://localhost:3000
