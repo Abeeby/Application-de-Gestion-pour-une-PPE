@@ -362,6 +362,8 @@ app.delete('/api/projets/:id', requireAuth, requireRole('admin'), (req, res) => 
   }
   supprimerProjet(req.params.id)
   res.json({ message: 'Projet supprimé avec succès', id: req.params.id })
+})
+
 app.get('/api/electricite/evolution', (req, res) => {
   const annee = Number.parseInt(String(req.query.annee ?? '2024'), 10) || 2024
   const resultat = productionsElectricite.filter((prod) => prod.annee === annee)
