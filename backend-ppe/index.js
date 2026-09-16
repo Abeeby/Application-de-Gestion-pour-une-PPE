@@ -1,5 +1,15 @@
 import express from 'express'
 import { saisies, appartements, categories, validerDepense, ajouterSaisie } from './saisies.js'
+import {
+  getProjets,
+  getProjetById,
+  ajouterProjet,
+  modifierProjet,
+  supprimerProjet,
+  validerProjet,
+  getDroitsUtilisateur,
+  statutsProjet,
+} from './projets.js'
 
 const app = express()
 const PORT = Number(process.env.PORT ?? 3001)
@@ -293,6 +303,65 @@ app.post('/api/financial/budgets', requireAuth, requireRole('admin'), (req, res)
   budgets.push(nextBudget)
 
   res.status(201).json({ budget: nextBudget })
+})
+
+// --- KAN-8 : Gestion des projets specifiques ---
+// KAN-37 : Gestion des droits (RBAC Administrateur vs Copropriétaire)
+// KAN-38 : Validations et tests fonctionnels
+
+// Retourne les options et les droits de l'utilisateur connecté sur les projets
+app.get('/api/projets/droits', requireAuth, (req, res) => {
+  const droits = getDroitsUtilisateur(req.user.role)
+  res.json({ droits, statuts: statutsProjet })
+})
+
+// Liste de tous les projets - accessible aux administrateurs et copropriétaires
+app.get('/api/projets', requireAuth, requireRole('admin', 'owner'), (req, res) => {
+  const liste = getProjets()
+  res.json(liste)
+})
+
+// Détail d'un projet par ID - accessible aux administrateurs et copropriétaires
+app.get('/api/projets/:id', requireAuth, requireRole('admin', 'owner'), (req, res) => {
+  const projet = getProjetById(req.params.id)
+  if (!projet) {
+    return res.status(404).json({ error: 'Projet introuvable' })
+  }
+  res.json(projet)
+})
+
+// Création d'un projet - réservée aux administrateurs (KAN-37) avec validation (KAN-38)
+app.post('/api/projets', requireAuth, requireRole('admin'), (req, res) => {
+  const erreurs = validerProjet(req.body ?? {})
+  if (erreurs.length > 0) {
+    return res.status(400).json({ erreurs })
+  }
+  const nouveau = ajouterProjet(req.body)
+  res.status(201).json(nouveau)
+})
+
+// Modification d'un projet - réservée aux administrateurs (KAN-37) avec validation (KAN-38)
+app.put('/api/projets/:id', requireAuth, requireRole('admin'), (req, res) => {
+  const projet = getProjetById(req.params.id)
+  if (!projet) {
+    return res.status(404).json({ error: 'Projet introuvable' })
+  }
+  const erreurs = validerProjet(req.body ?? {}, { isUpdate: true })
+  if (erreurs.length > 0) {
+    return res.status(400).json({ erreurs })
+  }
+  const modifie = modifierProjet(req.params.id, req.body)
+  res.json(modifie)
+})
+
+// Suppression d'un projet - réservée aux administrateurs (KAN-37)
+app.delete('/api/projets/:id', requireAuth, requireRole('admin'), (req, res) => {
+  const projet = getProjetById(req.params.id)
+  if (!projet) {
+    return res.status(404).json({ error: 'Projet introuvable' })
+  }
+  supprimerProjet(req.params.id)
+  res.json({ message: 'Projet supprimé avec succès', id: req.params.id })
 })
 
 app.get('/api/electricite/evolution', (req, res) => {

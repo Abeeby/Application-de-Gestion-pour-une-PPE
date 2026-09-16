@@ -185,8 +185,31 @@ export default function HomePage() {
         <div className="p-6 flex items-center gap-3">
           <div className="bg-blue-600 text-white p-2 rounded-lg font-bold text-sm">PPE</div>
           <div>
-            <h2 className="font-bold text-slate-900 leading-tight">PPE Gestion</h2>
-            <p className="text-xs text-slate-500">Gestion de copropriété</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-blue-700">PPE</p>
+            <h1 className="mt-2 text-3xl font-bold">Tableau de bord financier</h1>
+            <nav className="mt-3 flex items-center space-x-2">
+              <Link
+                href="/projets"
+                className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+              >
+                🏗️ Projets PPE
+              </Link>
+              <Link
+                href="/saisie"
+                className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+              >
+                ✍️ Saisie dépenses
+              </Link>
+              <Link
+                href="/historique"
+                className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+              >
+                📊 Historique
+              </Link>
+            </nav>
+          </div>
+          <div className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800">
+            {user.role === 'admin' ? 'Administrateur' : 'Copropriétaire'}
           </div>
         </div>
 
