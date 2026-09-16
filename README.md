@@ -193,6 +193,9 @@ Les pages sont ensuite accessibles à ces adresses :
 
 ---
 
+Voici le lien du prototype:
+
+lien: https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1
 ## Lancer les tests
 
 Les tests utilisent le testeur intégré de Node, il n'y a aucune librairie à installer.
