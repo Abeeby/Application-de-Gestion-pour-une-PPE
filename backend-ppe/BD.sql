@@ -2,7 +2,7 @@
    Projet   : PPE - gestion financiere d'une propriete par etages
    Fichier  : 01_schema.sql  (creation de la base et des tables)
    Auteurs  : Ruben ten Cate et Arthur Saugy
-   Version  : 1.3 - 14.09.2026
+   Version  : 1.4 - 16.09.2026 (ajout Transactions.id_lot : depense imputable a un lot)
    SGBD     : MySQL 8 / MariaDB 10.6+, moteur InnoDB, utf8mb4
    Execution: mysql < 01_schema.sql   (fichier 100% ASCII, aucun souci de charset)
  
@@ -284,8 +284,11 @@ CREATE TABLE Ligne_Budgets (
 -- C'est la table qui FERME LE CIRCUIT entre le prevu et le realise :
 --   id_categorie -> comparer avec Ligne_Budgets (budgete / realise par poste)
 --   id_projet    -> comparer avec Projets.budget_alloue (cout reel des travaux)
+--   id_lot       -> depense imputable a un seul lot (reparation privative),
+--                   distinct de la repartition des charges communes via
+--                   Lots.quote_part (qui, elle, ne porte sur aucune transaction)
 --   id_facture   -> remonter a la piece justificative et a son PDF
--- Les trois sont NULL-ables : une prime d'assurance n'a pas de projet, un
+-- Les quatre sont NULL-ables : une prime d'assurance n'a ni projet ni lot, un
 -- versement de charges n'a pas de facture fournisseur.
 -- -----------------------------------------------------------------------------
 CREATE TABLE Transactions (
@@ -293,6 +296,7 @@ CREATE TABLE Transactions (
   id_ppe           INT UNSIGNED NOT NULL,
   id_categorie     INT UNSIGNED NULL,
   id_projet        INT UNSIGNED NULL COMMENT 'depense imputee a un projet de travaux',
+  id_lot           INT UNSIGNED NULL COMMENT 'depense imputable a un lot precis (NULL = charge commune)',
   id_facture       INT UNSIGNED NULL COMMENT 'piece justificative',
   montant          DECIMAL(10,2) NOT NULL,
   date_transaction DATE NOT NULL,
@@ -304,18 +308,22 @@ CREATE TABLE Transactions (
   CONSTRAINT fk_transactions_categorie
     FOREIGN KEY (id_categorie) REFERENCES Categories(id)
     ON DELETE SET NULL ON UPDATE CASCADE,
-  -- SET NULL et non CASCADE : supprimer un projet ou une facture ne doit
-  -- jamais effacer un mouvement comptable deja enregistre.
+  -- SET NULL et non CASCADE : supprimer un projet, un lot ou une facture ne
+  -- doit jamais effacer un mouvement comptable deja enregistre.
   CONSTRAINT fk_transactions_projet
     FOREIGN KEY (id_projet) REFERENCES Projets(id)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_transactions_lot
+    FOREIGN KEY (id_lot) REFERENCES Lots(id)
     ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT fk_transactions_facture
     FOREIGN KEY (id_facture) REFERENCES Factures(id)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
+
 CREATE INDEX idx_transactions_date   ON Transactions (id_ppe, date_transaction);
 CREATE INDEX idx_transactions_projet ON Transactions (id_projet);
+CREATE INDEX idx_transactions_lot    ON Transactions (id_lot);
  
  
 -- -----------------------------------------------------------------------------

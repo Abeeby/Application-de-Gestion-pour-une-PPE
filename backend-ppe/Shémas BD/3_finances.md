@@ -1,6 +1,6 @@
----
-title: PPE 3/4 - Budget, factures et comptabilite
----
+## PPE 3/4 - Budget, factures et comptabilite
+
+```mermaid
 erDiagram
     PPE             ||--o{ Budgets_Annuels : "vote"
     Budgets_Annuels ||--o{ Ligne_Budgets   : "ventile en"
@@ -11,6 +11,7 @@ erDiagram
     PPE             ||--o{ Transactions    : "enregistre"
     Factures        |o--o{ Transactions    : "piece justificative"
     Projets         |o--o{ Transactions    : "cout reel du projet"
+    Lots            |o--o{ Transactions    : "depense imputable a un lot"
 
     PPE {
         int     id  PK
@@ -53,6 +54,7 @@ erDiagram
         int     id_ppe           FK
         int     id_categorie     FK
         int     id_projet        FK "NULL hors travaux"
+        int     id_lot           FK "NULL = charge commune"
         int     id_facture       FK "NULL si pas de piece"
         decimal montant
         date    date_transaction
@@ -64,3 +66,9 @@ erDiagram
         varchar nom              "detaille dans le schema 4/4"
         decimal budget_alloue
     }
+    Lots {
+        int     id         PK
+        varchar reference     "detaille dans le schema 1/4"
+        decimal quote_part
+    }
+```
