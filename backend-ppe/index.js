@@ -1,5 +1,5 @@
 import express from 'express'
-import { saisies, appartements, categories, validerDepense, ajouterSaisie } from './saisies.js'
+import { saisies, appartements, categories, projets, validerDepense, ajouterSaisie } from './saisies.js'
 
 const app = express()
 const PORT = Number(process.env.PORT ?? 3001)
@@ -176,7 +176,7 @@ app.get('/api/depenses/historique', (req, res) => {
 
 // Donne les listes a afficher dans le formulaire
 app.get('/api/saisies/options', (req, res) => {
-  res.json({ categories, appartements })
+  res.json({ categories, appartements, projets })
 })
 
 // Liste les depenses deja saisies

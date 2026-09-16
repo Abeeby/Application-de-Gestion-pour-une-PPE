@@ -13,6 +13,23 @@
 - `GET /api/financial/budgets` : budgets et taux d’usage
 - `POST /api/financial/budgets` : création d’un budget réservé aux administrateurs
 
+## Saisie des dépenses (KAN-19 / KAN-36)
+
+User story : en tant que copropriétaire ou administrateur, je veux enregistrer une dépense rattachée à un projet spécifique ou à un appartement concerné, afin d'assurer un suivi détaillé des coûts.
+
+- `GET /api/saisies/options` : catégories, appartements et projets disponibles pour le formulaire
+- `GET /api/saisies` : liste des dépenses déjà enregistrées
+- `POST /api/saisies` : enregistre une nouvelle dépense
+
+Règles de validation (`validerDepense`, testées dans `saisies.test.js`) :
+
+- `montant` : nombre strictement supérieur à 0
+- `date` : obligatoire
+- `categorie` : doit exister dans la liste des catégories
+- `appartement` : doit exister dans la liste des appartements
+- `projet` : optionnel — mais doit exister dans la liste des projets si fourni
+- `justificatif` : optionnel
+
 ## Exemple de requête
 
 ```bash

@@ -25,6 +25,7 @@ Saisie et enregistrement des dépenses : montant, date, catégorie, justificatif
 | Date | date | oui | — |
 | Catégorie | liste | oui | doit exister dans la liste |
 | Appartement | liste | oui | doit exister dans la liste |
+| Projet | liste | non | si renseigné, doit exister dans la liste (KAN-36) |
 | Justificatif | texte | non | numéro de facture, ex. `FAC-2026-001` |
 
 ### API
@@ -34,7 +35,8 @@ Saisie et enregistrement des dépenses : montant, date, catégorie, justificatif
 ```json
 {
   "categories": ["Entretien", "Assurances", "..."],
-  "appartements": ["A1", "A2", "A3", "B1", "B2", "B3", "Parties communes"]
+  "appartements": ["A1", "A2", "A3", "B1", "B2", "B3", "Parties communes"],
+  "projets": ["Rénovation toit", "Facade", "Ascenseur", "..."]
 }
 ```
 
@@ -50,6 +52,7 @@ Corps de la requête :
   "date": "2026-09-01",
   "categorie": "Entretien",
   "appartement": "A1",
+  "projet": "Rénovation toit",
   "justificatif": "FAC-2026-001"
 }
 ```
@@ -63,6 +66,27 @@ Réponse `201` si tout va bien, `400` avec la liste des erreurs sinon :
 ### Limite connue
 
 Les dépenses sont gardées en mémoire du serveur : elles disparaissent au redémarrage du backend. Le projet n'a pas encore de base de données.
+
+---
+
+## KAN-36 : Association dépense ↔ projet et appartement
+
+### User story
+
+En tant que copropriétaire ou administrateur, je veux enregistrer une dépense rattachée à un projet spécifique ou à un appartement concerné, afin d'assurer un suivi détaillé des coûts.
+
+### Fonctionnalités
+
+- Ajout d'un champ « Projet » (optionnel) au formulaire de saisie KAN-19, en complément de l'appartement (déjà présent)
+- Liste déroulante des projets alimentée par le serveur (`GET /api/saisies/options`)
+- Ajout de `Transactions.id_lot` dans `backend-ppe/BD.sql`, pour permettre à terme de rattacher une dépense réelle à un lot précis en base (nullable : une charge commune n'a pas de lot)
+
+### Tests validants (`backend-ppe/saisies.test.js`)
+
+- `refuse un appartement qui n existe pas` — l'appartement reste obligatoire
+- `refuse un projet qui n existe pas` — un projet fourni doit exister dans la liste
+- `accepte une depense sans projet` — le rattachement au projet est optionnel
+- `ajouterSaisie garde tous les champs de la depense` — vérifie que `projet` et `appartement` sont bien conservés sur la dépense enregistrée
 
 ---
 
