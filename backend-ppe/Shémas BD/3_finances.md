@@ -1,0 +1,74 @@
+## PPE 3/4 - Budget, factures et comptabilite
+
+```mermaid
+erDiagram
+    PPE             ||--o{ Budgets_Annuels : "vote"
+    Budgets_Annuels ||--o{ Ligne_Budgets   : "ventile en"
+    Categories      ||--o{ Ligne_Budgets   : "classe"
+    Categories      |o--o{ Factures        : "classe"
+    Categories      |o--o{ Transactions    : "classe"
+    PPE             ||--o{ Factures        : "recoit"
+    PPE             ||--o{ Transactions    : "enregistre"
+    Factures        |o--o{ Transactions    : "piece justificative"
+    Projets         |o--o{ Transactions    : "cout reel du projet"
+    Lots            |o--o{ Transactions    : "depense imputable a un lot"
+
+    PPE {
+        int     id  PK
+        varchar nom
+    }
+    Budgets_Annuels {
+        int      id               PK
+        int      id_ppe           FK
+        smallint annee               "unique par immeuble"
+        decimal  prevision_budget    "enveloppe votee en AG"
+        date     date_creation
+        enum     statut              "approuve | en attente | rejete"
+    }
+    Ligne_Budgets {
+        int     id               PK
+        int     id_budget_annuel FK "unique avec id_categorie"
+        int     id_categorie     FK
+        decimal montant
+    }
+    Categories {
+        int     id      PK
+        varchar libelle UK
+    }
+    Factures {
+        int     id             PK
+        int     id_ppe         FK
+        int     id_compteur    FK "vers Compteurs (schema 2/4)"
+        int     id_categorie   FK
+        varchar fournisseur
+        varchar numero_facture
+        enum    type              "electricite | chauffage | eau | gaz | autre"
+        decimal montant
+        date    date_facture
+        date    periode_debut
+        date    periode_fin
+        varchar fichier_pdf       "chemin du PDF uploade"
+    }
+    Transactions {
+        int     id               PK
+        int     id_ppe           FK
+        int     id_categorie     FK
+        int     id_projet        FK "NULL hors travaux"
+        int     id_lot           FK "NULL = charge commune"
+        int     id_facture       FK "NULL si pas de piece"
+        decimal montant
+        date    date_transaction
+        text    description
+        enum    type                "depense | recette"
+    }
+    Projets {
+        int     id            PK
+        varchar nom              "detaille dans le schema 4/4"
+        decimal budget_alloue
+    }
+    Lots {
+        int     id         PK
+        varchar reference     "detaille dans le schema 1/4"
+        decimal quote_part
+    }
+```
