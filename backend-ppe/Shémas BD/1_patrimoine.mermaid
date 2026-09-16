@@ -1,0 +1,41 @@
+---
+title: PPE 1/4 - Patrimoine et droits d'acces
+---
+erDiagram
+    PPE          ||--o{ Lots       : "contient"
+    Lots         ||--o{ Posseder   : "est possede par"
+    Utilisateurs ||--o{ Posseder   : "possede"
+    Utilisateurs ||--o{ Appartenir : "est rattache a"
+    PPE          ||--o{ Appartenir : "donne acces a"
+
+    PPE {
+        int     id      PK
+        varchar nom
+        varchar adresse
+    }
+    Lots {
+        int     id         PK
+        int     id_ppe     FK
+        varchar reference  UK "unique par immeuble"
+        decimal surface
+        decimal nbr_pieces    "3.5 / 4.5 pieces"
+        decimal quote_part
+    }
+    Utilisateurs {
+        int     id           PK
+        varchar nom
+        varchar prenom
+        varchar email        UK
+        varchar mot_de_passe "hash bcrypt / argon2"
+    }
+    Posseder {
+        int     id_utilisateur   PK "FK -> Utilisateurs.id"
+        int     id_lot           PK "FK -> Lots.id"
+        decimal part_propriete      "% de propriete sur ce lot"
+        date    date_acquisition
+    }
+    Appartenir {
+        int  id_utilisateur PK "FK -> Utilisateurs.id"
+        int  id_ppe         PK "FK -> PPE.id"
+        enum role              "coproprietaire | comite | admin"
+    }

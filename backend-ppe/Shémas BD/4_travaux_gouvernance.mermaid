@@ -1,0 +1,61 @@
+---
+title: PPE 4/4 - Travaux, votes et commentaires
+---
+erDiagram
+    PPE             ||--o{ Projets : "lance"
+    Projets         ||--o{ Devis   : "recoit"
+    Projets         |o--o{ Votes   : "objet du vote"
+    Devis           |o--o{ Votes   : "objet du vote"
+    Budgets_Annuels |o--o{ Votes   : "objet du vote"
+    Utilisateurs    ||--o{ Votes   : "emet"
+    Utilisateurs    ||--o{ Commenter       : "ecrit"
+    Budgets_Annuels ||--o{ Commenter       : "recoit"
+
+    PPE {
+        int     id  PK
+        varchar nom
+    }
+    Projets {
+        int     id            PK
+        int     id_ppe        FK
+        varchar nom
+        text    description
+        decimal budget_alloue
+        enum    statut           "en cours | termine | annule"
+        date    date_debut
+        date    date_fin         "NULL tant que le projet est en cours"
+    }
+    Devis {
+        int     id             PK
+        int     id_projet      FK
+        varchar entreprise
+        decimal montant
+        text    description
+        date    date_reception
+        enum    statut            "accepte | refuse | en attente"
+    }
+    Utilisateurs {
+        int     id     PK
+        varchar nom
+        varchar prenom
+    }
+    Budgets_Annuels {
+        int      id     PK
+        smallint annee     "detaille dans le schema 3/4"
+    }
+    Votes {
+        int      id               PK
+        int      id_utilisateur   FK
+        int      id_projet        FK "CHECK : une seule des 3 cibles"
+        int      id_devis         FK "CHECK : une seule des 3 cibles"
+        int      id_budget_annuel FK "CHECK : une seule des 3 cibles"
+        enum     choix               "pour | contre | abstention"
+        datetime date_vote
+    }
+    Commenter {
+        int      id               PK
+        int      id_utilisateur   FK
+        int      id_budget_annuel FK
+        text     commentaire
+        datetime date_commentaire
+    }

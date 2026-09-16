@@ -1,4 +1,15 @@
 import express from 'express'
+import { saisies, appartements, categories, validerDepense, ajouterSaisie } from './saisies.js'
+import {
+  getProjets,
+  getProjetById,
+  ajouterProjet,
+  modifierProjet,
+  supprimerProjet,
+  validerProjet,
+  getDroitsUtilisateur,
+  statutsProjet,
+} from './projets.js'
 
 const app = express()
 const PORT = Number(process.env.PORT ?? 3001)
@@ -88,6 +99,34 @@ const budgets = [
   { id: 'budget-3', category: 'Sécurité', planned: 1000, used: 320, progress: 32 },
 ]
 
+const productionsElectricite = [
+  { annee: 2023, mois: 1, productionKwh: 320, revenuChf: 64, chargesChf: 220 },
+  { annee: 2023, mois: 2, productionKwh: 380, revenuChf: 76, chargesChf: 200 },
+  { annee: 2023, mois: 3, productionKwh: 550, revenuChf: 110, chargesChf: 170 },
+  { annee: 2023, mois: 4, productionKwh: 700, revenuChf: 140, chargesChf: 150 },
+  { annee: 2023, mois: 5, productionKwh: 850, revenuChf: 170, chargesChf: 130 },
+  { annee: 2023, mois: 6, productionKwh: 1000, revenuChf: 200, chargesChf: 110 },
+  { annee: 2023, mois: 7, productionKwh: 1050, revenuChf: 210, chargesChf: 120 },
+  { annee: 2023, mois: 8, productionKwh: 950, revenuChf: 190, chargesChf: 125 },
+  { annee: 2023, mois: 9, productionKwh: 750, revenuChf: 150, chargesChf: 140 },
+  { annee: 2023, mois: 10, productionKwh: 550, revenuChf: 110, chargesChf: 170 },
+  { annee: 2023, mois: 11, productionKwh: 380, revenuChf: 76, chargesChf: 200 },
+  { annee: 2023, mois: 12, productionKwh: 280, revenuChf: 56, chargesChf: 230 },
+
+  { annee: 2024, mois: 1, productionKwh: 350, revenuChf: 70, chargesChf: 200 },
+  { annee: 2024, mois: 2, productionKwh: 420, revenuChf: 84, chargesChf: 180 },
+  { annee: 2024, mois: 3, productionKwh: 600, revenuChf: 120, chargesChf: 160 },
+  { annee: 2024, mois: 4, productionKwh: 750, revenuChf: 150, chargesChf: 140 },
+  { annee: 2024, mois: 5, productionKwh: 900, revenuChf: 180, chargesChf: 120 },
+  { annee: 2024, mois: 6, productionKwh: 1050, revenuChf: 210, chargesChf: 100 },
+  { annee: 2024, mois: 7, productionKwh: 1100, revenuChf: 220, chargesChf: 110 },
+  { annee: 2024, mois: 8, productionKwh: 1000, revenuChf: 200, chargesChf: 115 },
+  { annee: 2024, mois: 9, productionKwh: 800, revenuChf: 160, chargesChf: 130 },
+  { annee: 2024, mois: 10, productionKwh: 600, revenuChf: 120, chargesChf: 160 },
+  { annee: 2024, mois: 11, productionKwh: 400, revenuChf: 80, chargesChf: 190 },
+  { annee: 2024, mois: 12, productionKwh: 300, revenuChf: 60, chargesChf: 210 },
+]
+
 const getSummary = () => {
   const totalIncome = transactions
     .filter((item) => item.type === 'income')
@@ -171,6 +210,31 @@ app.get('/api/depenses/historique', (req, res) => {
   res.json(resultat)
 })
 
+// --- KAN-19 : module de saisie des depenses ---
+
+// Donne les listes a afficher dans le formulaire
+app.get('/api/saisies/options', (req, res) => {
+  res.json({ categories, appartements })
+})
+
+// Liste les depenses deja saisies
+app.get('/api/saisies', (req, res) => {
+  res.json(saisies)
+})
+
+// Enregistre une nouvelle depense
+app.post('/api/saisies', (req, res) => {
+  const depense = req.body ?? {}
+  const erreurs = validerDepense(depense)
+
+  if (erreurs.length > 0) {
+    return res.status(400).json({ erreurs })
+  }
+
+  const nouvelle = ajouterSaisie(depense)
+  res.status(201).json(nouvelle)
+})
+
 app.post('/api/auth/login', (req, res) => {
   const { email = '', role = 'admin' } = req.body ?? {}
   const normalizedEmail = String(email).trim().toLowerCase()
@@ -239,6 +303,72 @@ app.post('/api/financial/budgets', requireAuth, requireRole('admin'), (req, res)
   budgets.push(nextBudget)
 
   res.status(201).json({ budget: nextBudget })
+})
+
+// --- KAN-8 : Gestion des projets specifiques ---
+// KAN-37 : Gestion des droits (RBAC Administrateur vs Copropriétaire)
+// KAN-38 : Validations et tests fonctionnels
+
+// Retourne les options et les droits de l'utilisateur connecté sur les projets
+app.get('/api/projets/droits', requireAuth, (req, res) => {
+  const droits = getDroitsUtilisateur(req.user.role)
+  res.json({ droits, statuts: statutsProjet })
+})
+
+// Liste de tous les projets - accessible aux administrateurs et copropriétaires
+app.get('/api/projets', requireAuth, requireRole('admin', 'owner'), (req, res) => {
+  const liste = getProjets()
+  res.json(liste)
+})
+
+// Détail d'un projet par ID - accessible aux administrateurs et copropriétaires
+app.get('/api/projets/:id', requireAuth, requireRole('admin', 'owner'), (req, res) => {
+  const projet = getProjetById(req.params.id)
+  if (!projet) {
+    return res.status(404).json({ error: 'Projet introuvable' })
+  }
+  res.json(projet)
+})
+
+// Création d'un projet - réservée aux administrateurs (KAN-37) avec validation (KAN-38)
+app.post('/api/projets', requireAuth, requireRole('admin'), (req, res) => {
+  const erreurs = validerProjet(req.body ?? {})
+  if (erreurs.length > 0) {
+    return res.status(400).json({ erreurs })
+  }
+  const nouveau = ajouterProjet(req.body)
+  res.status(201).json(nouveau)
+})
+
+// Modification d'un projet - réservée aux administrateurs (KAN-37) avec validation (KAN-38)
+app.put('/api/projets/:id', requireAuth, requireRole('admin'), (req, res) => {
+  const projet = getProjetById(req.params.id)
+  if (!projet) {
+    return res.status(404).json({ error: 'Projet introuvable' })
+  }
+  const erreurs = validerProjet(req.body ?? {}, { isUpdate: true })
+  if (erreurs.length > 0) {
+    return res.status(400).json({ erreurs })
+  }
+  const modifie = modifierProjet(req.params.id, req.body)
+  res.json(modifie)
+})
+
+// Suppression d'un projet - réservée aux administrateurs (KAN-37)
+app.delete('/api/projets/:id', requireAuth, requireRole('admin'), (req, res) => {
+  const projet = getProjetById(req.params.id)
+  if (!projet) {
+    return res.status(404).json({ error: 'Projet introuvable' })
+  }
+  supprimerProjet(req.params.id)
+  res.json({ message: 'Projet supprimé avec succès', id: req.params.id })
+})
+
+app.get('/api/electricite/evolution', (req, res) => {
+  const annee = Number.parseInt(String(req.query.annee ?? '2024'), 10) || 2024
+  const resultat = productionsElectricite.filter((prod) => prod.annee === annee)
+
+  res.json(resultat)
 })
 
 app.listen(PORT, () => {

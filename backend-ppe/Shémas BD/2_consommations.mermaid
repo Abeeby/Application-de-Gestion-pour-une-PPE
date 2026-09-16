@@ -1,0 +1,36 @@
+---
+title: PPE 2/4 - Compteurs et releves
+---
+erDiagram
+    PPE       ||--o{ Lots      : "contient"
+    PPE       ||--o{ Compteurs : "equipe de"
+    Lots      |o--o{ Compteurs : "compteur privatif (0 ou 1 lot)"
+    Compteurs ||--o{ Releves   : "releve a une date"
+
+    PPE {
+        int     id  PK
+        varchar nom
+    }
+    Lots {
+        int     id        PK
+        int     id_ppe    FK
+        varchar reference UK
+    }
+    Compteurs {
+        int     id           PK
+        int     id_ppe       FK
+        int     id_lot       FK "NULL = compteur commun / general"
+        enum    type            "eau | eau_chaude | chauffage | electricite | gaz"
+        enum    portee          "general | commun | privatif"
+        varchar numero_serie UK
+        varchar emplacement
+        varchar unite           "kWh, m3, MJ"
+    }
+    Releves {
+        int     id           PK
+        int     id_compteur  FK
+        date    date_releve     "unique par compteur"
+        decimal index_releve    "donnee brute lue sur le compteur"
+        decimal consommation    "cache : index - index precedent"
+        decimal cout
+    }
