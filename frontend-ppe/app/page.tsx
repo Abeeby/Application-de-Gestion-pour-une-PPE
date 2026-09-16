@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -175,6 +176,26 @@ export default function HomePage() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-blue-700">PPE</p>
             <h1 className="mt-2 text-3xl font-bold">Tableau de bord financier</h1>
+            <nav className="mt-3 flex items-center space-x-2">
+              <Link
+                href="/projets"
+                className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+              >
+                🏗️ Projets PPE
+              </Link>
+              <Link
+                href="/saisie"
+                className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+              >
+                ✍️ Saisie dépenses
+              </Link>
+              <Link
+                href="/historique"
+                className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+              >
+                📊 Historique
+              </Link>
+            </nav>
           </div>
           <div className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800">
             {user.role === 'admin' ? 'Administrateur' : 'Copropriétaire'}
