@@ -8,12 +8,14 @@ type Saisie = {
   date: string
   categorie: string
   appartement: string
+  projet: string
   justificatif: string
 }
 
 export default function Saisie() {
   const [categories, setCategories] = useState<string[]>([])
   const [appartements, setAppartements] = useState<string[]>([])
+  const [projets, setProjets] = useState<string[]>([])
   const [saisies, setSaisies] = useState<Saisie[]>([])
 
   // Les champs du formulaire
@@ -21,6 +23,7 @@ export default function Saisie() {
   const [date, setDate] = useState('')
   const [categorie, setCategorie] = useState('')
   const [appartement, setAppartement] = useState('')
+  const [projet, setProjet] = useState('')
   const [justificatif, setJustificatif] = useState('')
 
   const [erreurs, setErreurs] = useState<string[]>([])
@@ -33,6 +36,7 @@ export default function Saisie() {
       .then(data => {
         setCategories(data.categories)
         setAppartements(data.appartements)
+        setProjets(data.projets)
       })
 
     chargerSaisies()
@@ -52,7 +56,7 @@ export default function Saisie() {
     const reponse = await fetch('http://localhost:3001/api/saisies', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ montant, date, categorie, appartement, justificatif }),
+      body: JSON.stringify({ montant, date, categorie, appartement, projet, justificatif }),
     })
 
     const data = await reponse.json()
@@ -68,6 +72,7 @@ export default function Saisie() {
     setDate('')
     setCategorie('')
     setAppartement('')
+    setProjet('')
     setJustificatif('')
     chargerSaisies()
   }
@@ -140,6 +145,17 @@ export default function Saisie() {
         </label>
 
         <label style={styleLabel}>
+          Projet concerné
+          <select value={projet} onChange={e => setProjet(e.target.value)} style={styleChamp}>
+            <option value="">-- Choisir --</option>
+            {projets.map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </label>
+
+
+        <label style={styleLabel}>
           Justificatif (numéro de facture)
           <input
             type="text"
@@ -193,6 +209,7 @@ export default function Saisie() {
               <th>Date</th>
               <th>Catégorie</th>
               <th>Appartement</th>
+              <th>Projet</th>
               <th>Justificatif</th>
               <th>Montant</th>
             </tr>
@@ -203,6 +220,7 @@ export default function Saisie() {
                 <td>{s.date}</td>
                 <td>{s.categorie}</td>
                 <td>{s.appartement}</td>
+                <td>{s.projet}</td>
                 <td>{s.justificatif || '-'}</td>
                 <td style={{ textAlign: 'right' }}>{s.montant} CHF</td>
               </tr>
