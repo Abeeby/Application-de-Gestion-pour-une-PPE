@@ -19,13 +19,13 @@ Saisie et enregistrement des dépenses : montant, date, catégorie, justificatif
 
 ### Champs du formulaire
 
-| Champ | Type | Obligatoire | Règle |
-|-------|------|-------------|-------|
-| Montant | nombre | oui | doit être supérieur à 0 |
-| Date | date | oui | — |
-| Catégorie | liste | oui | doit exister dans la liste |
-| Appartement | liste | oui | doit exister dans la liste |
-| Justificatif | texte | non | numéro de facture, ex. `FAC-2026-001` |
+| Champ        | Type   | Obligatoire | Règle                                  |
+| ------------ | ------ | ----------- | --------------------------------------- |
+| Montant      | nombre | oui         | doit être supérieur à 0              |
+| Date         | date   | oui         | —                                      |
+| Catégorie   | liste  | oui         | doit exister dans la liste              |
+| Appartement  | liste  | oui         | doit exister dans la liste              |
+| Justificatif | texte  | non         | numéro de facture, ex.`FAC-2026-001` |
 
 ### API
 
@@ -86,10 +86,10 @@ En tant qu'administrateur, je veux consulter l'historique des dépenses sur plus
 
 Paramètres de requête :
 
-| Paramètre    | Type   | Défaut | Description               |
-| ------------ | ------ | ------ | ------------------------- |
-| `anneeDebut` | number | 2022   | Première année à afficher |
-| `anneeFin`   | number | 2025   | Dernière année à afficher |
+| Paramètre     | Type   | Défaut | Description                  |
+| -------------- | ------ | ------- | ---------------------------- |
+| `anneeDebut` | number | 2022    | Première année à afficher |
+| `anneeFin`   | number | 2025    | Dernière année à afficher |
 
 Exemple :
 
@@ -149,31 +149,6 @@ npm start
 cd frontend-ppe
 npm install
 npm run dev
+
 ```
-
-Les pages sont ensuite accessibles à ces adresses :
-
-| Page | Adresse |
-|------|---------|
-| Connexion et tableau de bord | http://localhost:3000 |
-| Saisie des dépenses | http://localhost:3000/saisie |
-| Historique des dépenses | http://localhost:3000/historique |
-
----
-
-## Lancer les tests
-
-Les tests utilisent le testeur intégré de Node, il n'y a aucune librairie à installer.
-
-```bash
-cd backend-ppe
-npm test
-```
-
-Le serveur ne doit pas déjà tourner, sinon le port 3001 est occupé.
-
----
-
-## prototype PPE
-
-lien: https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1
+Puis ouvrir http://localhost:3000
