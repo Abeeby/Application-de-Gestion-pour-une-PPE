@@ -201,6 +201,12 @@ export default function HomePage() {
                 ✍️ Saisie dépenses
               </Link>
               <Link
+                href="/revenus"
+                className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+              >
+                Saisie revenus
+              </Link>
+              <Link
                 href="/historique"
                 className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
               >
