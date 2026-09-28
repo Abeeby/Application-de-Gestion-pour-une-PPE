@@ -1,0 +1,3 @@
+-- OBSOLETE : voir 001_extend_projets.sql et l'en-tete de BD.sql (v2.0).
+-- La colonne Categories.types existe directement dans BD.sql. Ne PAS
+-- executer ce fichier.

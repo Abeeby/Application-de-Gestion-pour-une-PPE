@@ -1,0 +1,3 @@
+-- OBSOLETE : voir 001_extend_projets.sql et l'en-tete de BD.sql (v2.0).
+-- La table Etapes_Projets est creee directement par BD.sql. Ne PAS executer
+-- ce fichier.
