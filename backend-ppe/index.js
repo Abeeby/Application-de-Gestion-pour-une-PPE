@@ -1,7 +1,7 @@
 import express from 'express'
 import multer from 'multer'
 import * as XLSX from 'xlsx'
-import { saisies, appartements, categories, validerDepense, ajouterSaisie } from './saisies.js'
+import { saisies, appartements, categories, projets, validerDepense, ajouterSaisie } from './saisies.js'
 import {
   revenus,
   appartementsRevenus,
@@ -225,7 +225,7 @@ app.get('/api/depenses/historique', (req, res) => {
 
 // Donne les listes a afficher dans le formulaire
 app.get('/api/saisies/options', (req, res) => {
-  res.json({ categories, appartements })
+  res.json({ categories, appartements, projets })
 })
 
 // Liste les depenses deja saisies

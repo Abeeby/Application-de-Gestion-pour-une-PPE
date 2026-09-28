@@ -53,6 +53,11 @@ test('refuse un appartement qui n existe pas', () => {
   assert.ok(erreurs.length > 0)
 })
 
+test('refuse un projet qui n existe pas', () => {
+  const erreurs = validerDepense({ ...depenseValide, projet: 'Projet Invalide' })
+  assert.ok(erreurs.length > 0)
+})
+
 test('donne plusieurs erreurs si plusieurs champs sont faux', () => {
   const erreurs = validerDepense({ montant: 0, date: '', categorie: '', appartement: '' })
   assert.strictEqual(erreurs.length, 4)
@@ -65,6 +70,11 @@ test('accepte un montant envoye en texte par le formulaire', () => {
 
 test('accepte une depense sans justificatif', () => {
   const erreurs = validerDepense({ ...depenseValide, justificatif: '' })
+  assert.strictEqual(erreurs.length, 0)
+})
+
+test('accepte une depense sans projet', () => {
+  const erreurs = validerDepense({ ...depenseValide, projet: '' })
   assert.strictEqual(erreurs.length, 0)
 })
 
@@ -110,6 +120,7 @@ test('ajouterSaisie garde tous les champs de la depense', () => {
     date: '2026-09-01',
     categorie: 'Entretien',
     appartement: 'A1',
+    projet: '',
     justificatif: 'FAC-2026-001',
   })
 })

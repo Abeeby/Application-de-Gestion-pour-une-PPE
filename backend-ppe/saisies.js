@@ -5,6 +5,8 @@ export const categories = ['Entretien', 'Assurances', 'Nettoyage', 'Eau & Electr
 
 export const appartements = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'Parties communes']
 
+export const projets = ['Rénovation toit', 'Facade', 'Ascenseur', 'Peinture', 'Plomberie', 'Electricité', 'Autre']
+
 export const saisies = []
 
 // Verifie qu'une depense est correcte
@@ -23,6 +25,10 @@ export function validerDepense(depense) {
 
   if (!categories.includes(depense.categorie)) {
     erreurs.push('La categorie est invalide')
+  }
+
+  if (depense.projet && !projets.includes(depense.projet)) {
+    erreurs.push('Le projet est invalide')
   }
 
   if (!appartements.includes(depense.appartement)) {
@@ -46,6 +52,7 @@ export function ajouterSaisie(depense) {
     date: depense.date,
     categorie: depense.categorie,
     appartement: depense.appartement,
+    projet: depense.projet || '',
     justificatif: depense.justificatif || '',
   }
 
