@@ -1,0 +1,3 @@
+-- OBSOLETE : voir 001_extend_projets.sql et l'en-tete de BD.sql (v2.0).
+-- Le type 'production_pv' et la colonne Releves.revenu existent directement
+-- dans BD.sql. Ne PAS executer ce fichier.

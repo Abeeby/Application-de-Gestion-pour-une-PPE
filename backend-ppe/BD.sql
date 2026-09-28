@@ -2,10 +2,17 @@
    Projet   : PPE - gestion financiere d'une propriete par etages
    Fichier  : 01_schema.sql  (creation de la base et des tables)
    Auteurs  : Ruben ten Cate et Arthur Saugy
-   Version  : 1.4 - 16.09.2026 (ajout Transactions.id_lot : depense imputable a un lot)
+   Version  : 2.0 - 28.09.2026 (fusion des migrations : etapes de projet,
+              statuts de projet etendus, responsable + progression manuelle,
+              suivi de la production photovoltaique, typage des categories.
+              Personne n'ayant encore de base en place, ces evolutions sont
+              directement integrees ici plutot que livrees comme des
+              migrations separees a rejouer par-dessus. L'ancien dossier
+              db/migrations/ est conserve pour tracer l'historique des
+              decisions mais n'a plus besoin d'etre execute.)
    SGBD     : MySQL 8 / MariaDB 10.6+, moteur InnoDB, utf8mb4
    Execution: mysql < 01_schema.sql   (fichier 100% ASCII, aucun souci de charset)
- 
+
    Conventions
    -----------
    - Noms de tables au pluriel, en PascalCase, sans accent ni espace.
@@ -18,21 +25,21 @@
    - ON DELETE RESTRICT par defaut ; CASCADE seulement quand l'enfant n'a
      aucun sens sans son parent (devis, lignes de budget, commentaires, votes).
    ============================================================================= */
- 
+
 -- Creation de la base de donnees
 DROP DATABASE IF EXISTS PPE;
 CREATE DATABASE PPE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE PPE;
- 
- 
+
+
 -- PPE : l'immeuble en propriete par etages. Racine de tout le modele.
 CREATE TABLE PPE (
   id      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   nom     VARCHAR(100) NOT NULL,
   adresse VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB COMMENT='Propriete par etages (immeuble)';
- 
- 
+
+
 -- Utilisateurs : comptes de connexion, rien d'autre. L'identite de la personne,
 -- pas son statut : le role depend de l'immeuble et vit donc dans Appartenir.
 -- mot_de_passe stocke un HASH (bcrypt/argon2), jamais le mot de passe en clair.
@@ -43,8 +50,8 @@ CREATE TABLE Utilisateurs (
   email        VARCHAR(120) NOT NULL UNIQUE,
   mot_de_passe VARCHAR(255) NOT NULL COMMENT 'hash bcrypt/argon2'
 ) ENGINE=InnoDB;
- 
- 
+
+
 -- -----------------------------------------------------------------------------
 -- Appartenir : N-N entre Utilisateurs et PPE. Table des DROITS D'ACCES, pas de
 -- propriete : elle rattache aussi le gerant, qui ne possede aucun lot.
@@ -67,8 +74,8 @@ CREATE TABLE Appartenir (
     FOREIGN KEY (id_ppe) REFERENCES PPE(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
- 
+
+
 -- Lots : les unites (appartements, caves, places de parc) d'un immeuble.
 -- quote_part = part des charges en % (ou en milliemes, a fixer avec l'equipe).
 -- nbr_pieces en DECIMAL : en Suisse un logement fait 3.5 ou 4.5 pieces.
@@ -85,8 +92,8 @@ CREATE TABLE Lots (
     FOREIGN KEY (id_ppe) REFERENCES PPE(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
- 
+
+
 -- Posseder : N-N entre Utilisateurs et Lots. Un couple peut posseder le meme
 -- lot (d'ou part_propriete), un proprietaire peut avoir plusieurs lots.
 CREATE TABLE Posseder (
@@ -102,8 +109,8 @@ CREATE TABLE Posseder (
     FOREIGN KEY (id_lot) REFERENCES Lots(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
- 
+
+
 -- -----------------------------------------------------------------------------
 -- Compteurs : uniquement les compteurs GERES PAR LA PPE.
 --   id_lot NULL   -> compteur general ou commun de l'immeuble
@@ -112,6 +119,9 @@ CREATE TABLE Posseder (
 -- Hors perimetre : l'electricite privative d'un appartement, qui fait l'objet
 -- d'un contrat direct entre l'occupant et le distributeur. La PPE ne paie que
 -- l'electricite des communs (cage d'escalier, ascenseur, buanderie).
+--
+-- type inclut 'production_pv' : compteur de production photovoltaique (toiture
+-- commune), distinct des compteurs de consommation - voir Releves.revenu.
 --
 -- Compromis assume : id_ppe est redondant quand id_lot est rempli (l'immeuble
 -- se deduirait du lot), mais il est indispensable pour les compteurs communs
@@ -125,7 +135,7 @@ CREATE TABLE Compteurs (
   id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   id_ppe       INT UNSIGNED NOT NULL,
   id_lot       INT UNSIGNED NULL COMMENT 'NULL = compteur commun / general',
-  type         ENUM('eau','eau_chaude','chauffage','electricite','gaz') NOT NULL,
+  type         ENUM('eau','eau_chaude','chauffage','electricite','gaz','production_pv') NOT NULL,
   portee       ENUM('general','commun','privatif') NOT NULL,
   numero_serie VARCHAR(50) NOT NULL,
   emplacement  VARCHAR(120) NULL,
@@ -143,12 +153,15 @@ CREATE TABLE Compteurs (
     FOREIGN KEY (id_lot) REFERENCES Lots(id)
     ON DELETE RESTRICT
 ) ENGINE=InnoDB;
- 
- 
+
+
 -- -----------------------------------------------------------------------------
 -- Releves : index releve sur un compteur a une date donnee.
 -- 1-N depuis Compteurs. index_releve est la donnee brute et verifiable ;
 -- consommation est un cache calcule (index - index precedent), fige au decompte.
+-- Pour un compteur de type 'production_pv', consommation represente la
+-- production du mois (kWh) et revenu la vente de cette production au
+-- distributeur (NULL pour un compteur de consommation classique).
 -- -----------------------------------------------------------------------------
 CREATE TABLE Releves (
   id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -157,32 +170,58 @@ CREATE TABLE Releves (
   index_releve DECIMAL(12,3) NOT NULL COMMENT 'valeur lue sur le compteur',
   consommation DECIMAL(12,3) NULL COMMENT 'index - index precedent',
   cout         DECIMAL(10,2) NULL COMMENT 'montant impute en CHF',
+  revenu       DECIMAL(10,2) NULL COMMENT 'revenu genere par ce releve (ex: vente de production PV), NULL si non applicable',
   CONSTRAINT uq_releves_compteur_date UNIQUE (id_compteur, date_releve),
   CONSTRAINT fk_releves_compteur
     FOREIGN KEY (id_compteur) REFERENCES Compteurs(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
- 
+
+
 -- -----------------------------------------------------------------------------
 -- Projets : travaux votes / en cours pour un immeuble.
 -- date_fin nullable : un projet en cours n'a pas encore de date de fin.
+-- responsable : entreprise/mandataire en charge du projet.
+-- progression_manuelle : override optionnel du pourcentage d'avancement.
+-- Par defaut la progression est calculee cote application (depense reelle,
+-- cf. Transactions.id_projet, / budget_alloue), mais un projet termine peut
+-- etre cloture a 100% sans avoir consomme tout son budget - d'ou la
+-- possibilite de forcer la valeur (NULL = calculee automatiquement).
 -- -----------------------------------------------------------------------------
 CREATE TABLE Projets (
-  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  id_ppe        INT UNSIGNED NOT NULL,
-  nom           VARCHAR(80) NOT NULL,
-  description   TEXT NOT NULL,
-  budget_alloue DECIMAL(10,2) NOT NULL,
-  statut        ENUM('en cours','termine','annule') NOT NULL DEFAULT 'en cours',
-  date_debut    DATE NOT NULL,
-  date_fin      DATE NULL,
+  id                   INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_ppe               INT UNSIGNED NOT NULL,
+  nom                  VARCHAR(80) NOT NULL,
+  description          TEXT NOT NULL,
+  responsable          VARCHAR(120) NOT NULL DEFAULT '',
+  budget_alloue        DECIMAL(10,2) NOT NULL,
+  progression_manuelle TINYINT UNSIGNED NULL COMMENT '0-100, NULL = calculee automatiquement',
+  statut               ENUM('Planifié','En cours','Terminé','En attente','Suspendu') NOT NULL DEFAULT 'Planifié',
+  date_debut           DATE NOT NULL,
+  date_fin             DATE NULL,
   CONSTRAINT fk_projets_ppe
     FOREIGN KEY (id_ppe) REFERENCES PPE(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
- 
+
+
+-- Etapes_Projets : frise des etapes d'un projet (etude, appel d'offres,
+-- travaux, reception...), affichee dans le suivi de projet.
+CREATE TABLE Etapes_Projets (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_projet  INT UNSIGNED NOT NULL,
+  titre      VARCHAR(150) NOT NULL,
+  date_etape DATE NOT NULL,
+  statut     ENUM('Terminé','En cours','En attente') NOT NULL DEFAULT 'En attente',
+  ordre      SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  CONSTRAINT fk_etapes_projet
+    FOREIGN KEY (id_projet) REFERENCES Projets(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_etapes_projet ON Etapes_Projets (id_projet, ordre);
+
+
 -- Devis : offres recues des entreprises pour un projet.
 CREATE TABLE Devis (
   id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -196,8 +235,8 @@ CREATE TABLE Devis (
     FOREIGN KEY (id_projet) REFERENCES Projets(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
- 
+
+
 -- -----------------------------------------------------------------------------
 -- Budgets_Annuels : un seul budget par immeuble et par annee (d'ou l'UNIQUE).
 --
@@ -220,17 +259,22 @@ CREATE TABLE Budgets_Annuels (
     FOREIGN KEY (id_ppe) REFERENCES PPE(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
- 
+
+
+-- -----------------------------------------------------------------------------
 -- Categories : nomenclature comptable (chauffage, conciergerie, assurances...).
 -- Table de reference independante : ce sont Transactions, Factures et
 -- Ligne_Budgets qui pointent vers elle, jamais l'inverse.
+-- types : formulaire(s) autorise(s) a proposer cette categorie (saisie des
+-- depenses et/ou des revenus) - evite de dupliquer la nomenclature par module.
+-- -----------------------------------------------------------------------------
 CREATE TABLE Categories (
   id      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  libelle VARCHAR(80) NOT NULL UNIQUE
+  libelle VARCHAR(80) NOT NULL UNIQUE,
+  types   SET('depense', 'recette') NOT NULL DEFAULT 'depense,recette'
 ) ENGINE=InnoDB;
- 
- 
+
+
 -- -----------------------------------------------------------------------------
 -- Factures : factures fournisseur (electricite des communs, chauffage, eau)
 -- avec le PDF joint. Le PDF n'est PAS stocke dans la base : on garde le chemin
@@ -259,10 +303,10 @@ CREATE TABLE Factures (
     FOREIGN KEY (id_categorie) REFERENCES Categories(id)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
+
 CREATE INDEX idx_factures_date ON Factures (id_ppe, date_facture);
- 
- 
+
+
 -- Ligne_Budgets : detail du budget annuel, un montant par categorie.
 CREATE TABLE Ligne_Budgets (
   id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -277,8 +321,8 @@ CREATE TABLE Ligne_Budgets (
     FOREIGN KEY (id_categorie) REFERENCES Categories(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
- 
+
+
 -- -----------------------------------------------------------------------------
 -- Transactions : mouvements reels de la comptabilite de l'immeuble.
 -- C'est la table qui FERME LE CIRCUIT entre le prevu et le realise :
@@ -324,8 +368,8 @@ CREATE TABLE Transactions (
 CREATE INDEX idx_transactions_date   ON Transactions (id_ppe, date_transaction);
 CREATE INDEX idx_transactions_projet ON Transactions (id_projet);
 CREATE INDEX idx_transactions_lot    ON Transactions (id_lot);
- 
- 
+
+
 -- -----------------------------------------------------------------------------
 -- Commenter : commentaires des coproprietaires sur un budget annuel.
 -- Association PORTEUSE de donnees (texte + date) : elle a donc un id technique
@@ -344,8 +388,8 @@ CREATE TABLE Commenter (
     FOREIGN KEY (id_budget_annuel) REFERENCES Budgets_Annuels(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
- 
- 
+
+
 -- -----------------------------------------------------------------------------
 -- Votes : un vote porte sur EXACTEMENT UN objet (projet, devis ou budget).
 -- Le CHECK utilise CASE WHEN et non (col IS NOT NULL) + ... : MariaDB refuse
@@ -382,4 +426,3 @@ CREATE TABLE Votes (
     FOREIGN KEY (id_budget_annuel) REFERENCES Budgets_Annuels(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
- 

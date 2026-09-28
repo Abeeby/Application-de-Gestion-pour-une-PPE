@@ -1,0 +1,7 @@
+-- OBSOLETE : ce fichier est conserve uniquement pour l'historique des
+-- decisions de conception (voir le commentaire d'en-tete de BD.sql, v2.0).
+-- Personne n'ayant encore de base en place au moment de cette fusion, son
+-- contenu (statuts de projet etendus, colonne responsable, progression
+-- manuelle) a ete integre directement dans BD.sql plutot que livre comme
+-- une migration a rejouer separement. Ne PAS executer ce fichier : les
+-- colonnes/enums qu'il modifiait existent deja tels quels dans BD.sql.

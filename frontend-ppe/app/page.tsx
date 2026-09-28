@@ -26,7 +26,7 @@ type Summary = {
 
 export default function HomePage() {
   const [email, setEmail] = useState('admin@ppe.fr')
-  const [role, setRole] = useState<Role>('admin')
+  const [password, setPassword] = useState('')
   const [token, setToken] = useState('')
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function HomePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({ email, password }),
       })
 
       const data = await response.json()
@@ -146,16 +146,20 @@ export default function HomePage() {
             </label>
 
             <label className="block text-sm font-medium text-slate-700">
-              Rôle
-              <select
-                aria-label="Rôle"
-                value={role}
-                onChange={(event) => setRole(event.target.value as Role)}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-slate-900 outline-none transition focus:border-blue-500"
-              >
-                <option value="admin">Administrateur</option>
-                <option value="owner">Copropriétaire</option>
-              </select>
+              Mot de passe
+              <input
+                aria-label="Mot de passe"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    void handleLogin()
+                  }
+                }}
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-slate-900 outline-none ring-0 transition focus:border-blue-500"
+                placeholder="••••••••"
+              />
             </label>
 
             {error ? (
