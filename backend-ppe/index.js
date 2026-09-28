@@ -1,5 +1,15 @@
 import express from 'express'
+import multer from 'multer'
+import * as XLSX from 'xlsx'
 import { saisies, appartements, categories, projets, validerDepense, ajouterSaisie } from './saisies.js'
+import {
+  revenus,
+  appartementsRevenus,
+  categoriesRevenus,
+  normaliserDateImport,
+  validerRevenu,
+  ajouterRevenu,
+} from './revenus.js'
 import {
   getProjets,
   getProjetById,
@@ -13,6 +23,7 @@ import {
 
 const app = express()
 const PORT = Number(process.env.PORT ?? 3001)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } })
 
 const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000']
 
@@ -233,6 +244,79 @@ app.post('/api/saisies', (req, res) => {
 
   const nouvelle = ajouterSaisie(depense)
   res.status(201).json(nouvelle)
+})
+
+// --- KAN-18 : module de saisie des revenus ---
+
+app.get('/api/revenus/options', (req, res) => {
+  res.json({ categories: categoriesRevenus, appartements: appartementsRevenus })
+})
+
+app.get('/api/revenus', (req, res) => {
+  res.json(revenus)
+})
+
+app.post('/api/revenus', (req, res) => {
+  const revenu = req.body ?? {}
+  const erreurs = validerRevenu(revenu)
+
+  if (erreurs.length > 0) {
+    return res.status(400).json({ erreurs })
+  }
+
+  res.status(201).json(ajouterRevenu(revenu))
+})
+
+const normaliserEntete = (entete) => String(entete ?? '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLowerCase()
+
+const convertirLignesImport = (lignes) => lignes.map((ligne) => {
+  const champs = Object.entries(ligne).reduce((resultat, [entete, valeur]) => {
+    resultat[normaliserEntete(entete)] = typeof valeur === 'string' ? valeur.trim() : valeur
+    return resultat
+  }, {})
+
+  return {
+    montant: champs.montant,
+    date: normaliserDateImport(champs.date),
+    categorie: champs.categorie,
+    appartement: champs.appartement,
+  }
+})
+
+app.post('/api/revenus/import', upload.single('fichier'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ erreurs: ['Le fichier CSV ou Excel est obligatoire'] })
+  }
+
+  try {
+    const classeur = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true })
+    const feuille = classeur.Sheets[classeur.SheetNames[0]]
+    const lignes = XLSX.utils.sheet_to_json(feuille, { defval: '', raw: false })
+    const revenusImportes = convertirLignesImport(lignes)
+    const erreurs = []
+
+    revenusImportes.forEach((revenu, index) => {
+      const erreursLigne = validerRevenu(revenu)
+      erreursLigne.forEach((erreur) => erreurs.push(`Ligne ${index + 2} : ${erreur}`))
+    })
+
+    if (revenusImportes.length === 0) {
+      erreurs.push('Le fichier ne contient aucun revenu')
+    }
+
+    if (erreurs.length > 0) {
+      return res.status(400).json({ erreurs })
+    }
+
+    const nouveauxRevenus = revenusImportes.map(ajouterRevenu)
+    res.status(201).json({ importes: nouveauxRevenus.length, revenus: nouveauxRevenus })
+  } catch (error) {
+    res.status(400).json({ erreurs: ['Le fichier est illisible. Utilisez un fichier CSV ou Excel valide.'] })
+  }
 })
 
 app.post('/api/auth/login', (req, res) => {
