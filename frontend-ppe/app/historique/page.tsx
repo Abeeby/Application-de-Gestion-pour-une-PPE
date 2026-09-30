@@ -43,7 +43,7 @@ export default function Historique() {
   }
 
   return (
-    <div style={{ padding: '30px', fontFamily: 'Arial, sans-serif', backgroundColor: '#f5f7fa', minHeight: '100vh' }}>
+    <div>
       <h1 style={{ color: '#1e293b' }}>Historique des dépenses par catégorie</h1>
       <p style={{ color: '#64748b' }}>Comparez les exercices annuels et repérez les écarts</p>
 

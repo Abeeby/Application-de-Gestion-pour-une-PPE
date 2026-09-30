@@ -94,7 +94,7 @@ export default function Saisie() {
   }
 
   return (
-    <div style={{ padding: '30px', fontFamily: 'Arial, sans-serif', backgroundColor: '#f5f7fa', minHeight: '100vh' }}>
+    <div>
       <h1 style={{ color: '#1e293b' }}>Saisie des dépenses</h1>
       <p style={{ color: '#64748b' }}>Enregistrer une nouvelle dépense de la PPE</p>
 

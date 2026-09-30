@@ -124,7 +124,7 @@ export default function RevenusPage() {
   const formatMontant = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'CHF' })
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 md:px-8">
+    <div>
       <div className="mx-auto max-w-6xl space-y-8">
         <header>
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-700">Gestion financière PPE</p>
@@ -161,6 +161,6 @@ export default function RevenusPage() {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   )
 }

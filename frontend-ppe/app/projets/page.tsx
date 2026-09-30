@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -280,31 +279,9 @@ export default function ProjetsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
+    <div>
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* Barre de navigation supérieure */}
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <div className="flex items-center space-x-3">
-            <Link
-              href="/"
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-            >
-              ← Tableau de bord
-            </Link>
-            <Link
-              href="/saisie"
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-            >
-              Saisie dépenses
-            </Link>
-            <Link
-              href="/historique"
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-            >
-              Historique
-            </Link>
-          </div>
-
+        <div className="flex flex-wrap items-center justify-end gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           {/* Testeur de rôles (KAN-37 RBAC switcher) */}
           <div className="flex items-center space-x-2">
             <span className="text-xs font-medium text-slate-500">Tester le rôle :</span>
@@ -764,6 +741,6 @@ export default function ProjetsPage() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }
