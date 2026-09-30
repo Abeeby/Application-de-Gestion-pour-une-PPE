@@ -317,7 +317,7 @@ export default function ProjetsPage() {
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              👨‍💼 Administrateur
+              Administrateur
             </button>
             <button
               type="button"
@@ -328,7 +328,7 @@ export default function ProjetsPage() {
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              🏠 Copropriétaire
+              Copropriétaire
             </button>
           </div>
         </div>
@@ -356,7 +356,7 @@ export default function ProjetsPage() {
                   : 'bg-amber-50 text-amber-700 ring-amber-600/20'
               }`}
             >
-              {droits?.estAdmin ? '✓ Administrateur (Droits complets)' : '👁 Copropriétaire (Lecture seule)'}
+              {droits?.estAdmin ? 'Administrateur (Droits complets)' : 'Copropriétaire (Lecture seule)'}
             </div>
 
             {/* Bouton Nouveau projet KAN-37 (conditionnel selon rôle) */}
@@ -375,7 +375,7 @@ export default function ProjetsPage() {
                 title="Action réservée aux administrateurs"
                 className="inline-flex cursor-not-allowed items-center rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-400"
               >
-                🔒 Nouveau projet (Admin)
+                Nouveau projet (Admin)
               </button>
             )}
           </div>
@@ -385,7 +385,6 @@ export default function ProjetsPage() {
         {droits?.estCoproprietaire && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900 shadow-sm">
             <div className="flex items-center space-x-2">
-              <span className="text-lg">ℹ️</span>
               <p>
                 <strong>Mode consultation (Copropriétaire) :</strong> Vous pouvez consulter la liste et l avancement
                 détaillé des projets extraordinaires. La création, modification et suppression de projets sont réservées

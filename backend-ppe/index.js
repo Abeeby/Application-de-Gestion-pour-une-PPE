@@ -53,8 +53,21 @@ app.use('/api/depenses', depensesHistoriqueRouter)
 // remonte ici via next(error) plutot que de faire planter le process.
 app.use((error, req, res, next) => {
   console.error(error)
-  res.status(500).json({ error: 'Erreur interne du serveur' })
+  console.log("test")
+ 
+  res.status(500).json({
+    error: 'Erreur interne du serveur',
+    ...(env.isDev && {
+      detail: {
+        message: error.message,
+        code: error.code, // ex: ER_NO_SUCH_TABLE, ER_BAD_FIELD_ERROR (mysql2)
+        sqlMessage: error.sqlMessage,
+        stack: error.stack,
+      },
+    }),
+  })
 })
+ 
 
 app.listen(env.port, async () => {
   console.log(`PPE backend running on http://localhost:${env.port}`)
