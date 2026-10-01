@@ -267,11 +267,16 @@ CREATE TABLE Budgets_Annuels (
 -- Ligne_Budgets qui pointent vers elle, jamais l'inverse.
 -- types : formulaire(s) autorise(s) a proposer cette categorie (saisie des
 -- depenses et/ou des revenus) - evite de dupliquer la nomenclature par module.
+-- cle_repartition (KAN-22) : comment une charge COMMUNE de cette categorie est
+-- ventilee entre les lots. 'quote_part' = au prorata de Lots.quote_part,
+-- 'egal' = parts egales entre lots habitables (quote_part > 0). Simplification
+-- assumee : pas de table de cles, pas de cle par sous-ensemble de lots.
 -- -----------------------------------------------------------------------------
 CREATE TABLE Categories (
-  id      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  libelle VARCHAR(80) NOT NULL UNIQUE,
-  types   SET('depense', 'recette') NOT NULL DEFAULT 'depense,recette'
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  libelle         VARCHAR(80) NOT NULL UNIQUE,
+  types           SET('depense', 'recette') NOT NULL DEFAULT 'depense,recette',
+  cle_repartition ENUM('quote_part', 'egal') NOT NULL DEFAULT 'quote_part'
 ) ENGINE=InnoDB;
 
 
