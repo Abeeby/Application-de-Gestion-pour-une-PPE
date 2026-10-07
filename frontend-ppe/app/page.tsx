@@ -283,6 +283,9 @@ export default function HomePage() {
             <div>
               <h1 className="text-2xl font-bold tracking-[-0.04em] text-slate-900 sm:text-[2.2rem]">Tableau de bord</h1>
               <p className="mt-1 text-sm text-slate-500">Vue d’ensemble de votre PPE • Les Terrasses, Lausanne</p>
+              <Link href="/tableau-de-bord" className="mt-2 inline-block text-sm font-medium text-blue-600 hover:underline">
+                Explorer les finances avec les filtres
+              </Link>
             </div>
 
             <div className="flex items-center gap-3 self-end sm:self-auto">
