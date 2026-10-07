@@ -1,5 +1,25 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## KAN-28 : tableau de bord interactif
+
+Page `/tableau-de-bord`, accessible depuis le tableau de bord principal après
+connexion (administrateur ou copropriétaire).
+
+- Filtres combinables : année, catégorie, appartement, projet.
+- Totaux en CHF, dépenses par catégorie, évolution mensuelle et transactions
+  recalculés sur les mêmes lignes filtrées.
+- Réinitialisation des filtres et actualisation des données.
+- Données des API existantes `/api/saisies`, `/api/revenus` et de leurs options.
+  Les revenus n'ont pas de projet : un filtre projet ne garde que les dépenses
+  rattachées, avec une explication dans la page.
+- Les années proviennent des transactions, sans liste d'années fixe.
+- Les montants sont additionnés en centimes dans `app/tableau-de-bord/calculs.ts`.
+
+Le backend et MySQL doivent fonctionner pour charger les données. Une erreur
+de connexion est affichée avec un bouton pour réessayer.
+
+Tests des filtres et calculs (Node 24) : `npm test` dans `frontend-ppe`.
+
 ## Getting Started
 
 First, run the development server:
