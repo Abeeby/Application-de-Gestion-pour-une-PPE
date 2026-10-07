@@ -32,13 +32,17 @@ type User = {
   role: Role
 }
 
+// KAN-26 : resume de l'exercice renvoye par GET /api/financial/summary
 type Summary = {
+  annee: number
   totalBalance: number
   totalIncome: number
   totalExpenses: number
-  monthlyForecast: number
-  activeAccounts: number
+  budgetTotal: number
+  budgetUtilise: number
+  budgetRestant: number
   budgetUsage: number
+  activeAccounts: number
 }
 
 export default function HomePage() {
@@ -144,11 +148,19 @@ export default function HomePage() {
     })
   }, [token])
 
-  const currency = new Intl.NumberFormat('fr-FR', {
+  // KAN-26 : une PPE suisse compte en francs suisses (et non en euros)
+  const currency = new Intl.NumberFormat('fr-CH', {
     style: 'currency',
-    currency: 'EUR',
+    currency: 'CHF',
     maximumFractionDigits: 0,
   })
+
+  const dateDuJour = new Intl.DateTimeFormat('fr-CH', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date())
 
   if (!token || !user) {
     return (
@@ -294,8 +306,8 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-3 self-end sm:self-auto">
-              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm">
-                Mardi, 25 août 2026
+              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium capitalize text-slate-700 shadow-sm">
+                {dateDuJour}
               </div>
               <button className="rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50">
                 <Bell className="h-5 w-5" />
@@ -305,62 +317,62 @@ export default function HomePage() {
 
           {summary ? (
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {/* KAN-26 : les 4 cartes affichent les vrais chiffres de l'exercice
+                  (avant : pourcentages ecrits en dur, ex. "8.4% vs mois dernier") */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Solde actuel</span>
-                  <span className="rounded-full bg-slate-100 p-1 text-slate-400">
-                    <span className="sr-only">Info</span>i
-                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Solde {summary.annee}</span>
                 </div>
-                <p className="mb-2 text-3xl font-bold text-slate-900">{currency.format(summary.totalBalance)}</p>
+                <p className={`mb-2 text-3xl font-bold ${summary.totalBalance < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                  {currency.format(summary.totalBalance)}
+                </p>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
-                    <ArrowUpRight className="h-3.5 w-3.5" /> 8.4% vs mois dernier
-                  </span>
+                  <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Revenus − dépenses de l’exercice</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Revenus 2026</span>
-                  <span className="rounded-full bg-slate-100 p-1 text-slate-400">
-                    <span className="sr-only">Info</span>i
-                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Revenus {summary.annee}</span>
+                  <ArrowUpRight className="h-4 w-4 text-emerald-500" />
                 </div>
                 <p className="mb-2 text-3xl font-bold text-slate-900">{currency.format(summary.totalIncome)}</p>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
-                    <ArrowUpRight className="h-3.5 w-3.5" /> 5.2% vs budget 2025
-                  </span>
+                  <span className="rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">Encaissés depuis le 1er janvier</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Dépenses 2026</span>
-                  <span className="rounded-full bg-slate-100 p-1 text-slate-400">
-                    <span className="sr-only">Info</span>i
-                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Dépenses {summary.annee}</span>
+                  <ArrowDownRight className="h-4 w-4 text-rose-500" />
                 </div>
                 <p className="mb-2 text-3xl font-bold text-slate-900">{currency.format(summary.totalExpenses)}</p>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 font-medium text-rose-700">
-                    <ArrowDownRight className="h-3.5 w-3.5" /> - 3.1% vs budget 2025
-                  </span>
+                  <span className="rounded bg-rose-100 px-2 py-0.5 font-medium text-rose-700">Payées depuis le 1er janvier</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Budget restant</span>
-                  <span className="rounded-full bg-slate-100 p-1 text-slate-400">
-                    <span className="sr-only">Info</span>i
-                  </span>
                 </div>
-                <p className="mb-2 text-3xl font-bold text-slate-900">{currency.format(summary.monthlyForecast)}</p>
+                <p className={`mb-2 text-3xl font-bold ${summary.budgetRestant < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                  {currency.format(summary.budgetRestant)}
+                </p>
+                <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${summary.budgetUsage > 100 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${Math.min(summary.budgetUsage, 100)}%` }}
+                  />
+                </div>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
-                    42% utilisé
+                  <span
+                    className={`rounded px-2 py-0.5 font-medium ${
+                      summary.budgetUsage > 100 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}
+                  >
+                    {summary.budgetUsage}% de {currency.format(summary.budgetTotal)} utilisé
                   </span>
                 </div>
               </div>

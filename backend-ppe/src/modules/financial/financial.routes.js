@@ -8,6 +8,7 @@ import {
   getSummary,
   getTransactionsRecentes,
 } from './financial.repository.js'
+import { lireAnnee, validerLigneBudget } from './financial.calcul.js'
 
 export const financialRouter = Router()
 
@@ -26,9 +27,14 @@ depensesHistoriqueRouter.get('/historique', requireAuth, requireRole('admin', 'o
   }
 })
 
+// KAN-26 : resume de l'exercice. ?annee=2025 pour une autre annee
+// (annee en cours par defaut).
 financialRouter.get('/summary', requireAuth, requireRole('admin', 'owner'), async (req, res, next) => {
   try {
-    res.json({ user: req.user, summary: await getSummary() })
+    const annee = lireAnnee(req.query.annee)
+    if (annee === null) return res.status(400).json({ error: 'Année invalide' })
+
+    res.json({ user: req.user, summary: await getSummary(annee) })
   } catch (error) {
     next(error)
   }
@@ -52,7 +58,10 @@ financialRouter.get('/transactions', requireAuth, requireRole('admin', 'owner'),
 
 financialRouter.get('/budgets', requireAuth, requireRole('admin', 'owner'), async (req, res, next) => {
   try {
-    res.json({ budgets: await getBudgets() })
+    const annee = lireAnnee(req.query.annee)
+    if (annee === null) return res.status(400).json({ error: 'Année invalide' })
+
+    res.json({ budgets: await getBudgets(annee) })
   } catch (error) {
     next(error)
   }
@@ -62,11 +71,13 @@ financialRouter.post('/budgets', requireAuth, requireRole('admin'), async (req, 
   try {
     const { category, planned } = req.body ?? {}
 
-    if (!category || typeof planned !== 'number') {
-      return res.status(400).json({ error: 'Données invalides : category et planned sont requis' })
+    // KAN-26 : avant, un montant de 0 ou negatif etait accepte
+    const erreurs = validerLigneBudget({ category, planned })
+    if (erreurs.length > 0) {
+      return res.status(400).json({ error: erreurs.join(' ; '), erreurs })
     }
 
-    res.status(201).json({ budget: await ajouterLigneBudget({ category, planned }) })
+    res.status(201).json({ budget: await ajouterLigneBudget({ category: category.trim(), planned }) })
   } catch (error) {
     next(error)
   }
