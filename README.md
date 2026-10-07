@@ -239,6 +239,40 @@ Page : http://localhost:3000/budgets
 
 ---
 
+## KAN-17 : Suivi du budget en direct et alertes de dépassement
+
+### User story
+
+En tant qu'administrateur, je veux visualiser à tout moment l'état du budget consommé par catégorie et recevoir une alerte automatique en cas de dépassement, afin de pouvoir réagir avant que la situation ne devienne problématique.
+
+### Règles d'alerte (par catégorie)
+
+| Niveau | Quand ? |
+|---|---|
+| 🔴 **Dépassé** | consommé > budget |
+| 🟠 **Attention** | ≥ 90 % du budget consommé, **ou** au rythme actuel la catégorie dépassera son budget avant le 31 décembre (projection = consommé ÷ part de l'année écoulée, seulement après le 1er trimestre pour éviter les fausses alertes de janvier) |
+| 🔵 **Hors budget** | dépense dans une catégorie qui n'a pas de ligne au budget |
+| 🟢 **OK** | sinon |
+
+### Où apparaissent les alertes ?
+
+- **Tableau de bord** : carte « Alertes budgétaires » + pastille rouge sur la cloche avec le nombre d'alertes (avant : 3 alertes écrites en dur).
+- **Page Budgets** : section « Suivi en direct » (budget, consommé, barre d'avancement, état) pour l'année choisie.
+- **Automatique** : rien à lancer, le suivi est recalculé à chaque affichage depuis les dépenses enregistrées. Démo : saisir une dépense « Électricité » de 1 500 CHF → l'alerte « Budget dépassé » apparaît sur le tableau de bord.
+
+Les chiffres sont cohérents avec KAN-26 : le total suivi est le même que la carte « Budget restant » du tableau de bord.
+
+### API
+
+`GET /api/budgets/:annee/suivi` (administrateur, 403 sinon) → `{ fractionEcoulee, categories: [{ categorie, budget, consomme, restant, taux, projection, niveau }], alertes: [{ niveau, categorie, message }], totaux }`. Sans budget pour l'année : une alerte le signale.
+
+### Tests
+
+- `suivi.calcul.test.js` : 10 tests sans base (part de l'année écoulée, chaque niveau, projection, tri des alertes).
+- `suivi.integration.test.js` : 3 tests avec base (vrai dépassement en base sur l'année 2001, droits, absence de budget).
+
+---
+
 ## KAN-22 : Répartition des charges et rapprochement de comptes
 
 ### User story
