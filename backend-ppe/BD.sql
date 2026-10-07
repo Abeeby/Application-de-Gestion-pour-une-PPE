@@ -11,7 +11,10 @@
               db/migrations/ est conserve pour tracer l'historique des
               decisions mais n'a plus besoin d'etre execute.)
    SGBD     : MySQL 8 / MariaDB 10.6+, moteur InnoDB, utf8mb4
-   Execution: mysql < 01_schema.sql   (fichier 100% ASCII, aucun souci de charset)
+   Execution: mysql --default-character-set=utf8mb4 < BD.sql
+              (le fichier contient des accents dans les ENUM de statut, ex.
+              'Terminé' : le SET NAMES ci-dessous evite qu'un client lance en
+              latin1 les enregistre mal, ce qui faisait planter npm run seed)
 
    Conventions
    -----------
@@ -25,6 +28,10 @@
    - ON DELETE RESTRICT par defaut ; CASCADE seulement quand l'enfant n'a
      aucun sens sans son parent (devis, lignes de budget, commentaires, votes).
    ============================================================================= */
+
+-- Force l'encodage de la connexion : sans ca, un client en latin1 stocke
+-- 'Terminé' de travers dans les ENUM et le seed echoue (Data truncated).
+SET NAMES utf8mb4;
 
 -- Creation de la base de donnees
 DROP DATABASE IF EXISTS PPE;
