@@ -12,7 +12,7 @@ import {
 } from 'recharts'
 import BanniereConnexion from '@/components/BanniereConnexion'
 import { apiFetch, SessionExpireeError } from '@/lib/api'
-import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Plus, Calculator } from 'lucide-react'
+import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Plus, Activity, Calculator } from 'lucide-react'
 import Link from 'next/link'
 
 type ProductionData = {
@@ -84,6 +84,9 @@ export default function ElectricitePage() {
           </Link>
           <Link href="/electricite" className="flex items-center gap-3 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-medium text-white shadow-sm transition">
             <Zap className="h-5 w-5 fill-current" /> Électricité
+          </Link>
+          <Link href="/statistiques" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
+            <Activity className="h-5 w-5" /> Statistiques
           </Link>
           <Link href="/saisie" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
             <FileText className="h-5 w-5" /> Dépenses
