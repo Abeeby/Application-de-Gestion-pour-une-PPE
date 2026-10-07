@@ -31,16 +31,16 @@ function versProjetPublic(ligne, etapes, depense) {
   }
 }
 
-async function calculerDepenseProjet(idProjet) {
-  const [lignes] = await pool.query(
+async function calculerDepenseProjet(idProjet, db = pool) {
+  const [lignes] = await db.query(
     "SELECT COALESCE(SUM(montant), 0) AS total FROM Transactions WHERE id_projet = ? AND type = 'depense'",
     [idProjet],
   )
   return Number(lignes[0].total)
 }
 
-async function recupererEtapes(idProjet) {
-  const [lignes] = await pool.query(
+async function recupererEtapes(idProjet, db = pool) {
+  const [lignes] = await db.query(
     'SELECT titre, date_etape, statut FROM Etapes_Projets WHERE id_projet = ? ORDER BY ordre ASC, id ASC',
     [idProjet],
   )
@@ -61,24 +61,26 @@ export async function getProjets() {
   )
 }
 
-export async function getProjetById(id) {
-  const [lignes] = await pool.query('SELECT * FROM Projets WHERE id = ? AND id_ppe = ?', [id, ID_PPE_DEFAUT])
+// db : pool par defaut, ou la connexion d'une transaction (voir avecTransaction)
+// pour que l'operation et sa ligne d'historique (KAN-35) soient validees ensemble.
+export async function getProjetById(id, db = pool) {
+  const [lignes] = await db.query('SELECT * FROM Projets WHERE id = ? AND id_ppe = ?', [id, ID_PPE_DEFAUT])
   const ligne = lignes[0]
 
   if (!ligne) {
     return null
   }
 
-  const [etapes, depense] = await Promise.all([recupererEtapes(ligne.id), calculerDepenseProjet(ligne.id)])
+  const [etapes, depense] = await Promise.all([recupererEtapes(ligne.id, db), calculerDepenseProjet(ligne.id, db)])
   return versProjetPublic(ligne, etapes, depense)
 }
 
-async function remplacerEtapes(idProjet, etapes) {
-  await pool.query('DELETE FROM Etapes_Projets WHERE id_projet = ?', [idProjet])
+async function remplacerEtapes(idProjet, etapes, db = pool) {
+  await db.query('DELETE FROM Etapes_Projets WHERE id_projet = ?', [idProjet])
 
   let ordre = 0
   for (const etape of etapes) {
-    await pool.query(
+    await db.query(
       'INSERT INTO Etapes_Projets (id_projet, titre, date_etape, statut, ordre) VALUES (?, ?, ?, ?, ?)',
       [idProjet, etape.titre, etape.date, etape.statut ?? 'En attente', ordre],
     )
@@ -86,11 +88,11 @@ async function remplacerEtapes(idProjet, etapes) {
   }
 }
 
-export async function ajouterProjet(data) {
+export async function ajouterProjet(data, db = pool) {
   const budgetTotal = Number(data.budgetTotal)
   const progressionManuelle = data.progression !== undefined ? Math.round(Number(data.progression)) : null
 
-  const [resultat] = await pool.query(
+  const [resultat] = await db.query(
     `INSERT INTO Projets (id_ppe, nom, description, responsable, budget_alloue, progression_manuelle, statut, date_debut, date_fin)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -107,25 +109,25 @@ export async function ajouterProjet(data) {
   )
 
   if (Array.isArray(data.etapes) && data.etapes.length > 0) {
-    await remplacerEtapes(resultat.insertId, data.etapes)
+    await remplacerEtapes(resultat.insertId, data.etapes, db)
   }
 
   // depense initiale optionnelle : permet de creer un projet en reprenant un
   // historique (import de donnees existantes), enregistree comme une
   // transaction plutot que comme un champ libre non tracable.
   if (data.depense !== undefined && Number(data.depense) > 0) {
-    await pool.query(
+    await db.query(
       `INSERT INTO Transactions (id_ppe, id_projet, montant, date_transaction, description, type)
        VALUES (?, ?, ?, ?, ?, 'depense')`,
       [ID_PPE_DEFAUT, resultat.insertId, Number(data.depense), data.dateDebut, `Dépenses initiales - ${data.titre.trim()}`],
     )
   }
 
-  return getProjetById(resultat.insertId)
+  return getProjetById(resultat.insertId, db)
 }
 
-export async function modifierProjet(id, data) {
-  const existant = await getProjetById(id)
+export async function modifierProjet(id, data, db = pool) {
+  const existant = await getProjetById(id, db)
   if (!existant) {
     return null
   }
@@ -133,7 +135,7 @@ export async function modifierProjet(id, data) {
   const budgetTotal = data.budgetTotal !== undefined ? Number(data.budgetTotal) : existant.budgetTotal
   const progressionManuelle = data.progression !== undefined ? Math.round(Number(data.progression)) : null
 
-  await pool.query(
+  await db.query(
     `UPDATE Projets
      SET nom = ?, description = ?, responsable = ?, budget_alloue = ?,
          progression_manuelle = ?, statut = ?, date_debut = ?, date_fin = ?
@@ -156,13 +158,13 @@ export async function modifierProjet(id, data) {
   )
 
   if (Array.isArray(data.etapes)) {
-    await remplacerEtapes(id, data.etapes)
+    await remplacerEtapes(id, data.etapes, db)
   }
 
-  return getProjetById(id)
+  return getProjetById(id, db)
 }
 
-export async function supprimerProjet(id) {
-  const [resultat] = await pool.query('DELETE FROM Projets WHERE id = ? AND id_ppe = ?', [id, ID_PPE_DEFAUT])
+export async function supprimerProjet(id, db = pool) {
+  const [resultat] = await db.query('DELETE FROM Projets WHERE id = ? AND id_ppe = ?', [id, ID_PPE_DEFAUT])
   return resultat.affectedRows > 0
 }

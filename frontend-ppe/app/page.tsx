@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
   BarChart2,
   Calculator,
+  History,
   Bell,
   CheckCircle2,
   ChevronDown,
@@ -261,6 +262,9 @@ export default function HomePage() {
           </Link>
           <Link href="/charges" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
             <Calculator className="h-5 w-5" /> Charges
+          </Link>
+          <Link href="/modifications" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
+            <History className="h-5 w-5" /> Journal
           </Link>
         </nav>
 

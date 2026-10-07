@@ -33,3 +33,27 @@ export async function verifierConnexionDb() {
     return false
   }
 }
+
+/**
+ * Execute `travail(connexion)` dans une transaction SQL : tout est valide
+ * ensemble, ou tout est annule si une requete echoue. Utilise par KAN-35 pour
+ * qu'une operation ne soit jamais enregistree sans sa ligne d'historique.
+ * @param {(connexion: import('mysql2/promise').PoolConnection) => Promise<T>} travail
+ * @param {{getConnection: Function}} [source] pool a utiliser (remplace dans les tests)
+ * @returns {Promise<T>}
+ * @template T
+ */
+export async function avecTransaction(travail, source = pool) {
+  const connexion = await source.getConnection()
+  try {
+    await connexion.beginTransaction()
+    const resultat = await travail(connexion)
+    await connexion.commit()
+    return resultat
+  } catch (error) {
+    await connexion.rollback()
+    throw error
+  } finally {
+    connexion.release()
+  }
+}
