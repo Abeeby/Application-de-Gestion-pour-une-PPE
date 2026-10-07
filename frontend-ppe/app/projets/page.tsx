@@ -73,16 +73,18 @@ export default function ProjetsPage() {
     maximumFractionDigits: 0,
   })
 
-  // Connexion automatique selon le rôle sélectionné
+  // Connexion automatique selon le rôle sélectionné, avec les comptes de
+  // démonstration créés par `npm run seed` (le backend exige le mot de passe).
   const seConnecter = async (roleVoulu: Role) => {
     setChargement(true)
     setErreurs([])
     try {
-      const email = roleVoulu === 'admin' ? 'admin@ppe.fr' : 'coproprietaire@ppe.fr'
+      const [email, password] =
+        roleVoulu === 'admin' ? ['admin@ppe.fr', 'admin1234'] : ['coproprietaire@ppe.fr', 'coprop1234']
       const resAuth = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role: roleVoulu }),
+        body: JSON.stringify({ email, password }),
       })
       if (!resAuth.ok) {
         throw new Error('Impossible de se connecter')
