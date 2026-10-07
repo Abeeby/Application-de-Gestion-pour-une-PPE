@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Settings, LogOut, Bell, Upload, Plus, Wallet, ArrowUpRight } from 'lucide-react'
+import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Settings, LogOut, Bell, Upload, Plus, Wallet, ArrowUpRight, Calculator } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -167,6 +167,9 @@ export default function RevenusPage() {
           </Link>
           <Link href="/historique" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
             <BarChart2 className="h-5 w-5" /> Historique
+          </Link>
+          <Link href="/charges" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
+            <Calculator className="h-5 w-5" /> Charges
           </Link>
         </nav>
 

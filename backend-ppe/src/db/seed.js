@@ -44,6 +44,11 @@ const TYPES_PAR_CATEGORIE = new Map([
   ['Travaux', 'recette'],
 ])
 
+// KAN-22 : categories dont les charges communes sont reparties a parts egales
+// entre les lots (les autres le sont selon la quote-part). Simplification :
+// l'eau et l'electricite ne sont pas comptees par logement.
+const CATEGORIES_A_PARTS_EGALES = new Set(['Eau & Electricite', 'Électricité'])
+
 // Comptes de demonstration. Mots de passe en clair UNIQUEMENT ici (donnees de
 // seed de developpement) : ils sont hashes avant d'etre stockes en base.
 const UTILISATEURS = [
@@ -145,6 +150,26 @@ const TRANSACTIONS_RECENTES = [
   { type: 'recette', categorie: 'Travaux', description: 'Remboursement travaux', montant: 1800, date: '2026-08-20' },
 ]
 
+// KAN-22 : factures fournisseur pour le rapprochement. Chacune est liee a la
+// transaction de meme description. La facture de plomberie (920) ne correspond
+// volontairement PAS au paiement (870) pour montrer un « ecart ».
+const FACTURES = [
+  { numero: 'FAC-2026-014', fournisseur: 'Romande Énergie', type: 'electricite', montant: 1260, date: '2026-08-10', description: "Facture d'électricité" },
+  { numero: 'FAC-2026-021', fournisseur: 'Plomberie Jaquier Sàrl', type: 'autre', montant: 920, date: '2026-08-15', description: 'Plomberie et réparation' },
+  { numero: 'FAC-2026-027', fournisseur: 'Serrurerie du Nord', type: 'autre', montant: 450, date: '2026-09-08', description: 'Remplacement serrure porte palière A2' },
+]
+
+// KAN-22 : depense privative (imputee a 100% a un seul lot)
+const DEPENSES_PRIVATIVES = [
+  { categorie: 'Reparations', lot: 'A2', montant: 450, date: '2026-09-10', description: 'Remplacement serrure porte palière A2' },
+]
+
+// KAN-22 : acomptes de charges verses par chaque lot habitable en 2026
+const ACOMPTES_CHARGES = [
+  { date: '2026-01-31', montant: 6000 },
+  { date: '2026-07-31', montant: 6000 },
+]
+
 // Budget annuel de reference pour le tableau de bord
 const ANNEE_BUDGET = 2026
 const LIGNES_BUDGET = [
@@ -213,9 +238,10 @@ async function seed() {
 
   const idParCategorie = {}
   for (const libelle of TOUTES_CATEGORIES) {
-    const [result] = await pool.query('INSERT INTO Categories (libelle, types) VALUES (?, ?)', [
+    const [result] = await pool.query('INSERT INTO Categories (libelle, types, cle_repartition) VALUES (?, ?, ?)', [
       libelle,
       TYPES_PAR_CATEGORIE.get(libelle) ?? 'depense,recette',
+      CATEGORIES_A_PARTS_EGALES.has(libelle) ? 'egal' : 'quote_part',
     ])
     idParCategorie[libelle] = result.insertId
   }
@@ -278,6 +304,37 @@ async function seed() {
     )
   }
 
+  for (const depense of DEPENSES_PRIVATIVES) {
+    await pool.query(
+      `INSERT INTO Transactions (id_ppe, id_categorie, id_lot, montant, date_transaction, description, type)
+       VALUES (?, ?, ?, ?, ?, ?, 'depense')`,
+      [idPpe, idParCategorie[depense.categorie], idParLot[depense.lot], depense.montant, depense.date, depense.description],
+    )
+  }
+
+  for (const facture of FACTURES) {
+    const [result] = await pool.query(
+      `INSERT INTO Factures (id_ppe, fournisseur, numero_facture, type, montant, date_facture)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [idPpe, facture.fournisseur, facture.numero, facture.type, facture.montant, facture.date],
+    )
+    await pool.query("UPDATE Transactions SET id_facture = ? WHERE id_ppe = ? AND type = 'depense' AND description = ?", [
+      result.insertId,
+      idPpe,
+      facture.description,
+    ])
+  }
+
+  for (const lot of LOTS.filter((l) => l.quote_part > 0)) {
+    for (const acompte of ACOMPTES_CHARGES) {
+      await pool.query(
+        `INSERT INTO Transactions (id_ppe, id_categorie, id_lot, montant, date_transaction, description, type)
+         VALUES (?, ?, ?, ?, ?, ?, 'recette')`,
+        [idPpe, idParCategorie['Charges de copropriete'], idParLot[lot.reference], acompte.montant, acompte.date, `Acompte de charges ${lot.reference}`],
+      )
+    }
+  }
+
   const [budgetResult] = await pool.query(
     `INSERT INTO Budgets_Annuels (id_ppe, annee, prevision_budget, date_creation, statut)
      VALUES (?, ?, ?, CURDATE(), 'approuve')`,
@@ -311,7 +368,7 @@ async function seed() {
   console.log('Terminé.')
   console.log(`  - PPE #${idPpe} : ${NOM_PPE}`)
   console.log(`  - ${LOTS.length} lots, ${TOUTES_CATEGORIES.length} categories, ${UTILISATEURS.length} utilisateurs`)
-  console.log(`  - ${PROJETS.length} projets, ${DEPENSES_HISTORIQUE.length + TRANSACTIONS_RECENTES.length + PROJETS.filter((p) => p.depensesEngagees > 0).length} transactions`)
+  console.log(`  - ${PROJETS.length} projets, ${DEPENSES_HISTORIQUE.length + TRANSACTIONS_RECENTES.length + PROJETS.filter((p) => p.depensesEngagees > 0).length + DEPENSES_PRIVATIVES.length + LOTS.filter((l) => l.quote_part > 0).length * ACOMPTES_CHARGES.length} transactions, ${FACTURES.length} factures`)
   console.log(`  - ${PRODUCTION_PV.length} relevés de production photovoltaïque`)
   console.log('')
   console.log('Comptes de connexion (email / mot de passe) :')

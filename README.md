@@ -159,6 +159,50 @@ En tant que membre de la PPE (administrateur ou copropriétaire), je veux que l'
 
 ---
 
+## KAN-22 : Répartition des charges et rapprochement de comptes
+
+### User story
+
+En tant qu'administrateur, je veux que chaque dépense soit automatiquement ventilée entre les copropriétaires (selon quote-part ou clé spécifique) et rapprochée des transactions bancaires, afin de générer des décomptes de charges fiables sans calcul manuel.
+
+### Choix de conception (simplifications assumées)
+
+- **Ventilation au lot** (pas jusqu'au copropriétaire).
+- **Clé de répartition par catégorie** : colonne `Categories.cle_repartition` (`quote_part` par défaut, `egal` pour l'eau et l'électricité). Pas de table de clés.
+- Une dépense rattachée à un lot habitable est imputée **100 %** à ce lot ; une dépense sans lot ou sur « Parties communes » est une **charge commune**.
+- La quote-part est divisée par la **somme** des quote-parts (fonctionne en % comme en millièmes).
+- Les montants sont calculés en **centimes** ; la somme des parts tombe toujours juste (méthode du plus fort reste).
+- **Rapprochement** : chaque transaction est considérée comme une ligne du relevé ; on vérifie qu'elle correspond à sa facture (`id_facture`) → `rapprochee`, `ecart` (montants différents) ou `sans_justificatif`.
+- Le décompte affiche un **avertissement** (sans bloquer) s'il reste des transactions non rapprochées.
+- Acomptes = recettes de catégorie « Charges de copropriete » rattachées à un lot. Solde = charges − acomptes.
+
+### API (rôle `admin` uniquement, sinon 403)
+
+- **GET** `/api/charges/decompte?annee=2026` — décompte par lot (`charges`, `acomptes`, `solde`, `parCategorie`), `totalDepenses`, `avertissement`
+- **GET** `/api/charges/rapprochement?annee=2026` — transactions avec leur `statut` et un `resume` par statut
+
+### Page
+
+http://localhost:3000/charges (se connecter d'abord en admin sur le tableau de bord)
+
+### Tests d'acceptation
+
+| # | Scénario | Type |
+|---|---|---|
+| 1 | Dépense commune de 1000 CHF → 166.70 ×5 et 166.50 (B3) | Auto |
+| 2 | 10 CHF en parts égales sur 3 lots → 3.34 + 3.33 + 3.33 | Auto |
+| 3 | Dépense sur le lot A2 → 100 % A2 ; sur « Parties communes » → ventilée | Auto |
+| 4 | Catégorie à clé `egal` → parts égales | Auto |
+| 5–7 | Statuts `rapprochee` / `ecart` / `sans_justificatif` | Auto |
+| 8 | Décompte : charges − acomptes = solde, avertissement si non rapproché | Auto |
+| 9 | API : total des lots = total des dépenses ; 403 non-admin, 401 sans token | Auto (base + seed requis, sinon sauté) |
+| 10 | Refaire 3 dépenses à la main dans Excel → mêmes montants au centime | Manuel |
+| 11 | Page `/charges` lisible : décompte par lot, détail par catégorie, statuts | Manuel |
+
+Fichiers : `backend-ppe/src/modules/charges/charges.calcul.test.js` (1–8) et `charges.integration.test.js` (9).
+
+---
+
 ## Structure des fichiers
 
 ```
