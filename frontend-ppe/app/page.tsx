@@ -262,6 +262,11 @@ export default function HomePage() {
           <Link href="/charges" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
             <Calculator className="h-5 w-5" /> Charges
           </Link>
+          {user.role === 'admin' && (
+            <Link href="/rapports" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
+              <FileText className="h-5 w-5" /> Rapports
+            </Link>
+          )}
         </nav>
 
         <div className="mt-2 space-y-1 border-t border-slate-200 p-4">
