@@ -21,10 +21,11 @@ depensesRouter.get('/options', async (req, res, next) => {
   }
 })
 
-// Liste les depenses deja saisies
+// Liste les depenses deja saisies avec filtres optionnels
+// Exemple: /api/saisies?appartement=A1&projet=R%C3%A9novation%20du%20toit&dateDebut=2026-01-01&dateFin=2026-12-31
 depensesRouter.get('/', async (req, res, next) => {
   try {
-    res.json(await listerDepenses())
+    res.json(await listerDepenses(req.query))
   } catch (error) {
     next(error)
   }
