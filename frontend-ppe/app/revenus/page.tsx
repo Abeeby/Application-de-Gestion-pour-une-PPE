@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import BanniereConnexion from '@/components/BanniereConnexion'
 import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
-import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Activity, Calculator, ArrowUpRight } from 'lucide-react'
+import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Plus, Activity, Calculator, ArrowUpRight } from 'lucide-react'
 
 
 type Revenu = { id: number; montant: number; date: string; categorie: string; appartement: string }

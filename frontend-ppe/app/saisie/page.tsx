@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BanniereConnexion from '@/components/BanniereConnexion'
 import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
-import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Activity, Calculator, ArrowDownRight } from 'lucide-react'
+import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Plus, Activity, Calculator, ArrowDownRight } from 'lucide-react'
 
 type Saisie = {
   id: number
