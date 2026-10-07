@@ -19,6 +19,12 @@ export default function Saisie() {
   const [appartements, setAppartements] = useState<string[]>([])
   const [projets, setProjets] = useState<string[]>([])
   const [saisies, setSaisies] = useState<Saisie[]>([])
+  const [filtres, setFiltres] = useState({
+    appartement: '',
+    projet: '',
+    dateDebut: '',
+    dateFin: '',
+  })
 
   const [montant, setMontant] = useState('')
   const [date, setDate] = useState('')
@@ -42,8 +48,20 @@ export default function Saisie() {
     chargerSaisies()
   }, [])
 
-  function chargerSaisies() {
-    fetch('http://localhost:3001/api/saisies')
+  useEffect(() => {
+    chargerSaisies(filtres)
+  }, [filtres])
+
+  function chargerSaisies(filtresActifs = filtres) {
+    const params = new URLSearchParams()
+    if (filtresActifs.appartement) params.set('appartement', filtresActifs.appartement)
+    if (filtresActifs.projet) params.set('projet', filtresActifs.projet)
+    if (filtresActifs.dateDebut) params.set('dateDebut', filtresActifs.dateDebut)
+    if (filtresActifs.dateFin) params.set('dateFin', filtresActifs.dateFin)
+
+    const url = params.size > 0 ? `http://localhost:3001/api/saisies?${params.toString()}` : 'http://localhost:3001/api/saisies'
+
+    fetch(url)
       .then(res => res.json())
       .then(data => setSaisies(data))
   }
@@ -90,7 +108,7 @@ export default function Saisie() {
     setAppartement('')
     setProjet('')
     setJustificatif('')
-    chargerSaisies()
+    chargerSaisies(filtres)
   }
 
   return (
@@ -317,8 +335,68 @@ export default function Saisie() {
           </section>
 
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-xl font-semibold text-slate-900">Dépenses enregistrées ({saisies.length})</h2>
+            </div>
+
+            <div className="mb-5 grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-5">
+              <label className="text-sm font-medium text-slate-700">
+                Appartement
+                <select
+                  value={filtres.appartement}
+                  onChange={e => setFiltres(prev => ({ ...prev, appartement: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-blue-500"
+                >
+                  <option value="">Tous</option>
+                  {appartements.map(appartement => (
+                    <option key={appartement} value={appartement}>{appartement}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="text-sm font-medium text-slate-700">
+                Projet
+                <select
+                  value={filtres.projet}
+                  onChange={e => setFiltres(prev => ({ ...prev, projet: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-blue-500"
+                >
+                  <option value="">Tous</option>
+                  {projets.map(projet => (
+                    <option key={projet} value={projet}>{projet}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="text-sm font-medium text-slate-700">
+                Du
+                <input
+                  type="date"
+                  value={filtres.dateDebut}
+                  onChange={e => setFiltres(prev => ({ ...prev, dateDebut: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-blue-500"
+                />
+              </label>
+
+              <label className="text-sm font-medium text-slate-700">
+                Au
+                <input
+                  type="date"
+                  value={filtres.dateFin}
+                  onChange={e => setFiltres(prev => ({ ...prev, dateFin: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-blue-500"
+                />
+              </label>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={() => setFiltres({ appartement: '', projet: '', dateDebut: '', dateFin: '' })}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                >
+                  Réinitialiser
+                </button>
+              </div>
             </div>
 
             {erreurs.length > 0 && (

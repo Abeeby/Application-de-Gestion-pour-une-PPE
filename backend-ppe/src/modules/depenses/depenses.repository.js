@@ -24,8 +24,45 @@ function versDepensePublique(ligne) {
   }
 }
 
-export async function listerDepenses() {
-  const [lignes] = await pool.query(`${SELECT_DEPENSE} ORDER BY t.date_transaction DESC, t.id DESC`, [ID_PPE_DEFAUT])
+export function construireFiltresDepenses(filtres = {}) {
+  const clauses = []
+  const valeurs = []
+
+  const projet = String(filtres.projet ?? '').trim()
+  const appartement = String(filtres.appartement ?? '').trim()
+  const dateDebut = String(filtres.dateDebut ?? '').trim()
+  const dateFin = String(filtres.dateFin ?? '').trim()
+
+  if (projet) {
+    clauses.push('p.nom = ?')
+    valeurs.push(projet)
+  }
+
+  if (appartement) {
+    clauses.push('l.reference = ?')
+    valeurs.push(appartement)
+  }
+
+  if (dateDebut) {
+    clauses.push('t.date_transaction >= ?')
+    valeurs.push(dateDebut)
+  }
+
+  if (dateFin) {
+    clauses.push('t.date_transaction <= ?')
+    valeurs.push(dateFin)
+  }
+
+  return { clauses, valeurs }
+}
+
+export async function listerDepenses(filtres = {}) {
+  const { clauses, valeurs } = construireFiltresDepenses(filtres)
+  const whereClause = clauses.length > 0 ? ` AND ${clauses.join(' AND ')}` : ''
+  const [lignes] = await pool.query(
+    `${SELECT_DEPENSE}${whereClause} ORDER BY t.date_transaction DESC, t.id DESC`,
+    [ID_PPE_DEFAUT, ...valeurs],
+  )
   return lignes.map(versDepensePublique)
 }
 
