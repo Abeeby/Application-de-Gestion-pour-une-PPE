@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import BanniereConnexion from '@/components/BanniereConnexion'
+import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
 import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Settings, LogOut, Bell, Upload, Plus, Wallet, ArrowDownRight, Calculator } from 'lucide-react'
 
 type Saisie = {
@@ -29,23 +31,35 @@ export default function Saisie() {
 
   const [erreurs, setErreurs] = useState<string[]>([])
   const [message, setMessage] = useState('')
+  const [nonConnecte, setNonConnecte] = useState(false)
+
+  // KAN-12 : toute erreur 401 affiche le bandeau de connexion
+  function gererErreur(erreur: unknown) {
+    if (erreur instanceof SessionExpireeError) {
+      setNonConnecte(true)
+    } else {
+      setErreurs([messageErreur(erreur)])
+    }
+  }
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/saisies/options')
+    apiFetch('/api/saisies/options')
       .then(res => res.json())
       .then(data => {
         setCategories(data.categories)
         setAppartements(data.appartements)
         setProjets(data.projets)
       })
+      .catch(gererErreur)
 
     chargerSaisies()
   }, [])
 
   function chargerSaisies() {
-    fetch('http://localhost:3001/api/saisies')
+    apiFetch('/api/saisies')
       .then(res => res.json())
       .then(data => setSaisies(data))
+      .catch(gererErreur)
   }
 
   async function envoyerFormulaire(e: React.FormEvent) {
@@ -70,11 +84,17 @@ export default function Saisie() {
       return
     }
 
-    const reponse = await fetch('http://localhost:3001/api/saisies', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ montant: montant.replace(',', '.'), date: `${annee}-${mois}-${jour}`, categorie, appartement, projet, justificatif }),
-    })
+    let reponse: Response
+    try {
+      reponse = await apiFetch('/api/saisies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ montant: montant.replace(',', '.'), date: `${annee}-${mois}-${jour}`, categorie, appartement, projet, justificatif }),
+      })
+    } catch (erreur) {
+      gererErreur(erreur)
+      return
+    }
 
     const data = await reponse.json()
 
@@ -168,6 +188,8 @@ export default function Saisie() {
               </button>
             </div>
           </header>
+
+          {nonConnecte && <BanniereConnexion />}
 
           <section className="mb-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

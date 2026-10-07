@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import BanniereConnexion from '@/components/BanniereConnexion'
+import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
 import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Settings, LogOut, Bell, Upload, Plus, Wallet, ArrowUpRight, Calculator } from 'lucide-react'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 type Revenu = { id: number; montant: number; date: string; categorie: string; appartement: string }
 type Options = { categories: string[]; appartements: string[] }
@@ -38,21 +39,31 @@ export default function RevenusPage() {
   const [message, setMessage] = useState('')
   const [fichier, setFichier] = useState<File | null>(null)
   const [chargement, setChargement] = useState(false)
+  const [nonConnecte, setNonConnecte] = useState(false)
+
+  // KAN-12 : toute erreur 401 affiche le bandeau de connexion
+  const gererErreur = (erreur: unknown) => {
+    if (erreur instanceof SessionExpireeError) {
+      setNonConnecte(true)
+    } else {
+      setErreurs([messageErreur(erreur)])
+    }
+  }
 
   const chargerRevenus = async () => {
-    const response = await fetch(`${API_URL}/api/revenus`)
+    const response = await apiFetch('/api/revenus')
     if (response.ok) setRevenus(await response.json())
   }
 
   useEffect(() => {
     const charger = async () => {
       const [optionsResponse] = await Promise.all([
-        fetch(`${API_URL}/api/revenus/options`),
+        apiFetch('/api/revenus/options'),
         chargerRevenus(),
       ])
       if (optionsResponse.ok) setOptions(await optionsResponse.json())
     }
-    void charger()
+    charger().catch(gererErreur)
   }, [])
 
   const envoyerFormulaire = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -71,7 +82,7 @@ export default function RevenusPage() {
     }
     setChargement(true)
     try {
-      const response = await fetch(`${API_URL}/api/revenus`, {
+      const response = await apiFetch('/api/revenus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ montant: montantNumerique, date: dateIso, categorie, appartement }),
@@ -106,7 +117,7 @@ export default function RevenusPage() {
     const donnees = new FormData()
     donnees.append('fichier', fichier)
     try {
-      const response = await fetch(`${API_URL}/api/revenus/import`, { method: 'POST', body: donnees })
+      const response = await apiFetch('/api/revenus/import', { method: 'POST', body: donnees })
       const data = await response.json()
       if (!response.ok) {
         setErreurs(data.erreurs ?? ['Import impossible'])
@@ -200,6 +211,8 @@ export default function RevenusPage() {
               </button>
             </div>
           </header>
+
+          {nonConnecte && <BanniereConnexion />}
 
           <section className="mb-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

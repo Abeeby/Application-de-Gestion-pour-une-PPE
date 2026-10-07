@@ -89,6 +89,13 @@ quand c'est possible - voir `*.validation.test.js`).
 - `POST /api/auth/login` : connexion avec `{ email, password }`
 - `GET /api/auth/me` : retourne l'utilisateur connecté à partir du token Bearer
 
+**Sécurité (KAN-12)** : le token est signé (HMAC-SHA256) avec le secret
+`AUTH_SECRET` du fichier `.env` (32 caractères minimum, voir `.env.example`).
+Sans `AUTH_SECRET`, un secret temporaire est généré au démarrage : il faut
+alors se reconnecter après chaque redémarrage du backend. En production
+(`NODE_ENV=production`), le serveur refuse de démarrer sans `AUTH_SECRET`.
+Toutes les routes de données exigent un token valide (401 sinon).
+
 Comptes de démonstration créés par `npm run seed` (mots de passe visibles
 dans la sortie de la commande, également listés ici pour référence dev) :
 
