@@ -67,6 +67,14 @@ export default function HomePage() {
       },
     })
 
+    if (response.status === 401) {
+      // KAN-12 : token expiré ou invalide (ex. backend redémarré) -> on
+      // l'oublie pour réafficher le formulaire de connexion.
+      localStorage.removeItem('ppe_token')
+      setToken('')
+      throw new Error('Votre session a expiré, reconnectez-vous.')
+    }
+
     if (!response.ok) {
       throw new Error('Impossible de récupérer le tableau de bord.')
     }

@@ -10,6 +10,8 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts'
+import BanniereConnexion from '@/components/BanniereConnexion'
+import { apiFetch, SessionExpireeError } from '@/lib/api'
 import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Plus, Activity, Calculator } from 'lucide-react'
 import Link from 'next/link'
 
@@ -29,10 +31,11 @@ const moisNoms = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', '
 export default function ElectricitePage() {
   const [data, setData] = useState<ProductionData[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [nonConnecte, setNonConnecte] = useState(false)
 
   useEffect(() => {
     setIsLoading(true)
-    fetch(`http://localhost:3001/api/electricite/evolution?annee=2024`)
+    apiFetch('/api/electricite/evolution?annee=2024')
       .then(res => res.json())
       .then(fetchedData => {
         const formattedData = fetchedData.map((item: ProductionData) => ({
@@ -43,7 +46,11 @@ export default function ElectricitePage() {
         setData(formattedData)
         setIsLoading(false)
       })
-      .catch(() => setIsLoading(false))
+      .catch((erreur: unknown) => {
+        // KAN-12 : 401 -> bandeau de connexion
+        if (erreur instanceof SessionExpireeError) setNonConnecte(true)
+        setIsLoading(false)
+      })
   }, [])
 
   return (
@@ -133,6 +140,8 @@ export default function ElectricitePage() {
               </button>
             </div>
           </header>
+
+          {nonConnecte && <BanniereConnexion />}
 
           {/* KPIs */}
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">

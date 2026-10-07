@@ -2,10 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-
-type Role = 'admin' | 'owner'
+import BanniereConnexion from '@/components/BanniereConnexion'
+import { apiFetch, SessionExpireeError } from '@/lib/api'
 
 type Etape = {
   titre: string
@@ -41,8 +39,8 @@ type Droits = {
 }
 
 export default function ProjetsPage() {
-  const [role, setRole] = useState<Role>('admin')
-  const [token, setToken] = useState<string>('')
+  // KAN-12 : la page utilise la session ouverte sur le tableau de bord
+  const [nonConnecte, setNonConnecte] = useState(false)
   const [droits, setDroits] = useState<Droits | null>(null)
   const [statuts, setStatuts] = useState<string[]>([])
   const [projets, setProjets] = useState<Projet[]>([])
@@ -73,41 +71,17 @@ export default function ProjetsPage() {
     maximumFractionDigits: 0,
   })
 
-  // Connexion automatique selon le rôle sélectionné
-  const seConnecter = async (roleVoulu: Role) => {
-    setChargement(true)
-    setErreurs([])
-    try {
-      const email = roleVoulu === 'admin' ? 'admin@ppe.fr' : 'coproprietaire@ppe.fr'
-      const resAuth = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role: roleVoulu }),
-      })
-      if (!resAuth.ok) {
-        throw new Error('Impossible de se connecter')
-      }
-      const dataAuth = await resAuth.json()
-      setToken(dataAuth.token)
-      setRole(roleVoulu)
-      await chargerDonnees(dataAuth.token)
-    } catch (err: any) {
-      setErreurs([err.message || 'Erreur lors de la connexion'])
-    } finally {
-      setChargement(false)
-    }
-  }
-
   // Chargement des projets et vérification des droits RBAC
-  const chargerDonnees = async (authToken: string) => {
+  // KAN-12 : avant, la page se connectait toute seule (admin ou copropriétaire)
+  // SANS mot de passe, ce qui ne marchait que grâce à la faille du token non
+  // signé. Elle utilise maintenant la vraie session de l'utilisateur : le rôle
+  // affiché est celui du compte connecté.
+  const chargerDonnees = async () => {
+    setChargement(true)
     try {
       const [resDroits, resProjets] = await Promise.all([
-        fetch(`${API_URL}/api/projets/droits`, {
-          headers: { Authorization: `Bearer ${authToken}` },
-        }),
-        fetch(`${API_URL}/api/projets`, {
-          headers: { Authorization: `Bearer ${authToken}` },
-        }),
+        apiFetch('/api/projets/droits'),
+        apiFetch('/api/projets'),
       ])
 
       if (resDroits.ok) {
@@ -124,12 +98,19 @@ export default function ProjetsPage() {
         }
       }
     } catch (error) {
-      console.error('Erreur chargement données', error)
+      if (error instanceof SessionExpireeError) {
+        setNonConnecte(true)
+      } else {
+        console.error('Erreur chargement données', error)
+        setErreurs(['Le backend est indisponible'])
+      }
+    } finally {
+      setChargement(false)
     }
   }
 
   useEffect(() => {
-    void seConnecter('admin')
+    void chargerDonnees()
   }, [])
 
   // Ouvrir la modale pour créer un projet
@@ -191,17 +172,12 @@ export default function ProjetsPage() {
     }
 
     try {
-      const url = projetEnEdition
-        ? `${API_URL}/api/projets/${projetEnEdition.id}`
-        : `${API_URL}/api/projets`
+      const chemin = projetEnEdition ? `/api/projets/${projetEnEdition.id}` : '/api/projets'
       const method = projetEnEdition ? 'PUT' : 'POST'
 
-      const res = await fetch(url, {
+      const res = await apiFetch(chemin, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
@@ -224,12 +200,17 @@ export default function ProjetsPage() {
           ? `Le projet "${payload.titre}" a été mis à jour avec succès.`
           : `Le projet "${payload.titre}" a été créé avec succès.`
       )
-      await chargerDonnees(token)
+      await chargerDonnees()
 
       if (projetEnEdition) {
         setProjetSelectionne(data)
       }
     } catch (err: any) {
+      if (err instanceof SessionExpireeError) {
+        setModalOuverte(false)
+        setNonConnecte(true)
+        return
+      }
       setErreurs([err.message || 'Erreur réseau lors de la sauvegarde'])
     }
   }
@@ -246,10 +227,7 @@ export default function ProjetsPage() {
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/projets/${p.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await apiFetch(`/api/projets/${p.id}`, { method: 'DELETE' })
       if (!res.ok) {
         const d = await res.json()
         throw new Error(d.error || 'Erreur lors de la suppression')
@@ -258,8 +236,12 @@ export default function ProjetsPage() {
       if (projetSelectionne?.id === p.id) {
         setProjetSelectionne(null)
       }
-      await chargerDonnees(token)
+      await chargerDonnees()
     } catch (err: any) {
+      if (err instanceof SessionExpireeError) {
+        setNonConnecte(true)
+        return
+      }
       alert(err.message)
     }
   }
@@ -305,33 +287,17 @@ export default function ProjetsPage() {
             </Link>
           </div>
 
-          {/* Testeur de rôles (KAN-37 RBAC switcher) */}
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-medium text-slate-500">Tester le rôle :</span>
-            <button
-              type="button"
-              onClick={() => seConnecter('admin')}
-              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
-                role === 'admin'
-                  ? 'bg-blue-700 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Administrateur
-            </button>
-            <button
-              type="button"
-              onClick={() => seConnecter('owner')}
-              className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
-                role === 'owner'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Copropriétaire
-            </button>
-          </div>
+          {/* KAN-12 : rôle de la session réelle (remplace l'ancien sélecteur qui se
+              connectait sans mot de passe). Pour tester l'autre rôle : se
+              déconnecter puis se reconnecter avec l'autre compte de démo. */}
+          {droits && (
+            <p className="text-xs font-medium text-slate-500">
+              Connecté en tant que <span className="font-semibold text-slate-800">{droits.roleLabel}</span>
+            </p>
+          )}
         </div>
+
+        {nonConnecte && <BanniereConnexion />}
 
         {/* En-tête principal */}
         <header className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between">

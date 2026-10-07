@@ -159,6 +159,37 @@ En tant que membre de la PPE (administrateur ou copropriétaire), je veux que l'
 
 ---
 
+## KAN-12 : Authentification et rôles
+
+### User story
+
+En tant que membre de la PPE, je veux me connecter avec mon email et mon mot de passe, afin que seules les personnes autorisées accèdent aux données financières, chacune selon son rôle.
+
+### Comment ça marche
+
+1. `POST /api/auth/login` vérifie le mot de passe (hash **bcrypt** en base) et renvoie un **token signé**.
+2. Le frontend garde ce token (`localStorage`, clé `ppe_token`) et l'envoie à chaque appel : `Authorization: Bearer <token>` (fichier `frontend-ppe/lib/api.ts`).
+3. Le backend vérifie le token (`requireAuth`) puis le rôle (`requireRole`) avant de répondre.
+
+Le token a la forme `<contenu>.<signature>` : le contenu (`email` + date d'expiration) est signé avec **HMAC-SHA256** et un secret connu du serveur seul (`AUTH_SECRET` dans `.env`). Modifier le contenu, ou fabriquer un token à la main, casse la signature → `401`.
+
+### Qui a accès à quoi
+
+| Données | Non connecté | Copropriétaire (`owner`) | Administrateur (`admin`) |
+|---|---|---|---|
+| Tableau de bord, dépenses, revenus, historique, électricité | ❌ 401 | ✅ | ✅ |
+| Projets : consulter | ❌ 401 | ✅ | ✅ |
+| Projets : créer / modifier / supprimer (KAN-37) | ❌ 401 | ❌ 403 | ✅ |
+| Budgets : créer (`POST /api/financial/budgets`) | ❌ 401 | ❌ 403 | ✅ |
+| Répartition des charges (KAN-22) | ❌ 401 | ❌ 403 | ✅ |
+
+### Tests (`backend-ppe/src/modules/auth/`)
+
+- `auth.token.test.js` (14 tests, sans base) : token valide accepté ; faux token, contenu modifié, mauvais secret, token expiré refusés ; règles du secret.
+- `auth.integration.test.js` (6 tests, base requise sinon sautés) : 401 sur toutes les routes de données sans token, faux token admin refusé, accès 200 pour admin et copropriétaire connectés.
+
+---
+
 ## KAN-22 : Répartition des charges et rapprochement de comptes
 
 ### User story
