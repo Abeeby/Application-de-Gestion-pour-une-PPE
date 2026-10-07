@@ -46,6 +46,19 @@ type Summary = {
   activeAccounts: number
 }
 
+// KAN-17 : alerte budgetaire renvoyee par GET /api/budgets/:annee/suivi
+type AlerteBudget = {
+  niveau: 'depasse' | 'attention' | 'hors_budget'
+  categorie: string | null
+  message: string
+}
+
+const STYLE_ALERTE: Record<AlerteBudget['niveau'], { cadre: string; icone: string; titre: string }> = {
+  depasse: { cadre: 'border-rose-200 bg-rose-50', icone: 'text-rose-600', titre: 'Budget dépassé' },
+  attention: { cadre: 'border-amber-200 bg-amber-50', icone: 'text-amber-600', titre: 'Risque de dépassement' },
+  hors_budget: { cadre: 'border-sky-200 bg-sky-50', icone: 'text-sky-600', titre: 'Dépense hors budget' },
+}
+
 export default function HomePage() {
   const [email, setEmail] = useState('admin@ppe.fr')
   const [password, setPassword] = useState('')
@@ -62,6 +75,8 @@ export default function HomePage() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [budgets, setBudgets] = useState<any[]>([])
   const [error, setError] = useState('')
+  // null = alertes non accessibles (reservees a l'administrateur)
+  const [alertes, setAlertes] = useState<AlerteBudget[] | null>([])
   const [isLoading, setIsLoading] = useState(false)
 
   const fetchProtectedData = async (authToken: string) => {
@@ -109,6 +124,13 @@ export default function HomePage() {
 
     setTransactions(transactionsData.transactions)
     setBudgets(budgetsData.budgets)
+
+    // KAN-17 : alertes de depassement calculees en direct par le backend
+    // (403 pour un coproprietaire : le suivi est reserve a l'administrateur)
+    const suiviResponse = await fetch(`${API_URL}/api/budgets/${new Date().getFullYear()}/suivi`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+    setAlertes(suiviResponse.ok ? (await suiviResponse.json()).alertes : null)
   }
 
   const handleLogin = async () => {
@@ -313,8 +335,16 @@ export default function HomePage() {
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium capitalize text-slate-700 shadow-sm">
                 {dateDuJour}
               </div>
-              <button className="rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50">
+              <button
+                aria-label={alertes && alertes.length > 0 ? `${alertes.length} alerte(s) budgétaire(s)` : 'Aucune alerte'}
+                className="relative rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50"
+              >
                 <Bell className="h-5 w-5" />
+                {alertes && alertes.length > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold text-white">
+                    {alertes.length}
+                  </span>
+                )}
               </button>
             </div>
           </header>
@@ -470,40 +500,42 @@ export default function HomePage() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-slate-900">Alertes & actions</h2>
-                <button className="text-sm font-medium text-blue-600">Voir tout</button>
+                <h2 className="text-xl font-semibold text-slate-900">Alertes budgétaires</h2>
+                <Link href="/budgets" className="text-sm font-medium text-blue-600">
+                  Voir le budget
+                </Link>
               </div>
 
+              {/* KAN-17 : alertes reelles (avant : 3 alertes ecrites en dur) */}
               <div className="space-y-4">
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
-                    <div>
-                      <p className="font-semibold text-slate-800">Budget électricité</p>
-                      <p className="text-xs text-slate-600">Dépassement de 8% par rapport au budget estimé</p>
+                {alertes === null ? (
+                  <p className="text-sm text-slate-500">Le suivi du budget est réservé à l’administrateur.</p>
+                ) : alertes.length === 0 ? (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+                      <div>
+                        <p className="font-semibold text-slate-800">Tout est dans le budget</p>
+                        <p className="text-xs text-slate-600">Aucune catégorie ne dépasse ou ne risque de dépasser son budget.</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
-                    <div>
-                      <p className="font-semibold text-slate-800">Vote en attente</p>
-                      <p className="text-xs text-slate-600">Budget 2027 en attente de validation par 3 copropriétaires</p>
+                ) : (
+                  alertes.slice(0, 4).map((alerte) => (
+                    <div key={alerte.message} className={`rounded-xl border p-3 ${STYLE_ALERTE[alerte.niveau].cadre}`}>
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className={`mt-0.5 h-4 w-4 flex-shrink-0 ${STYLE_ALERTE[alerte.niveau].icone}`} />
+                        <div>
+                          <p className="font-semibold text-slate-800">{STYLE_ALERTE[alerte.niveau].titre}</p>
+                          <p className="text-xs text-slate-600">{alerte.message}</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-sky-600 text-[9px] font-bold text-white">i</span>
-                    <div>
-                      <p className="font-semibold text-slate-800">Devis à valider</p>
-                      <p className="text-xs text-slate-600">Rénovation du toit - 3 devis reçus à examiner</p>
-                    </div>
-                  </div>
-                </div>
+                  ))
+                )}
+                {alertes && alertes.length > 4 && (
+                  <p className="text-xs text-slate-500">+ {alertes.length - 4} autre(s) alerte(s) dans la page Budgets</p>
+                )}
               </div>
             </div>
           </section>

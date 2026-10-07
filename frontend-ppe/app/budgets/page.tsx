@@ -60,6 +60,43 @@ type Budget = {
 
 type LigneEdition = { categorie: string; montant: string }
 
+// KAN-17 : suivi en direct renvoye par GET /api/budgets/:annee/suivi
+type Niveau = 'ok' | 'attention' | 'depasse' | 'hors_budget'
+
+type SuiviCategorie = {
+  categorie: string
+  budget: number
+  consomme: number
+  restant: number
+  taux: number | null
+  projection: number | null
+  niveau: Niveau
+}
+
+type Suivi = {
+  annee: number
+  fractionEcoulee: number
+  categories: SuiviCategorie[]
+  alertes: { niveau: Niveau; message: string }[]
+}
+
+const BADGE_NIVEAU: Record<Niveau, { libelle: string; classe: string; barre: string }> = {
+  ok: { libelle: 'OK', classe: 'bg-emerald-100 text-emerald-700', barre: 'bg-emerald-500' },
+  attention: { libelle: 'Attention', classe: 'bg-amber-100 text-amber-800', barre: 'bg-amber-500' },
+  depasse: { libelle: 'Dépassé', classe: 'bg-rose-100 text-rose-700', barre: 'bg-rose-500' },
+  hors_budget: { libelle: 'Hors budget', classe: 'bg-sky-100 text-sky-700', barre: 'bg-sky-500' },
+}
+
+/** KAN-17 : suivi de l'année (null si non autorisé ou indisponible : réservé à l'admin). */
+async function chargerSuivi(annee: number): Promise<Suivi | null> {
+  try {
+    const reponse = await apiFetch(`/api/budgets/${annee}/suivi`)
+    return reponse.ok ? await reponse.json() : null
+  } catch {
+    return null
+  }
+}
+
 type Chargement =
   | { type: 'budget'; budget: Budget }
   | { type: 'absent'; estAdmin: boolean }
@@ -112,6 +149,7 @@ export default function BudgetsPage() {
   const [erreurs, setErreurs] = useState<string[]>([])
   const [message, setMessage] = useState('')
   const [envoi, setEnvoi] = useState(false)
+  const [suivi, setSuivi] = useState<Suivi | null>(null)
 
   const afficher = (resultat: Chargement) => {
     setEtat(resultat)
@@ -132,6 +170,16 @@ export default function BudgetsPage() {
   }, [annee])
 
   useEffect(() => {
+    let annule = false
+    chargerSuivi(annee).then((resultat) => {
+      if (!annule) setSuivi(resultat)
+    })
+    return () => {
+      annule = true
+    }
+  }, [annee])
+
+  useEffect(() => {
     // Catégories de dépense proposées pour ajouter une ligne
     apiFetch('/api/saisies/options')
       .then((reponse) => reponse.json())
@@ -141,6 +189,7 @@ export default function BudgetsPage() {
 
   const changerAnnee = (nouvelleAnnee: number) => {
     setEtat(null)
+    setSuivi(null)
     setErreurs([])
     setMessage('')
     setAnnee(nouvelleAnnee)
@@ -384,6 +433,76 @@ export default function BudgetsPage() {
                   <p className="mt-1 text-xs text-slate-500">{budget.ecart < 0 ? 'Les lignes dépassent l’enveloppe' : 'Enveloppe − lignes'}</p>
                 </div>
               </section>
+
+              {/* KAN-17 : suivi en direct (admin, année commencée) */}
+              {suivi && suivi.fractionEcoulee > 0 && suivi.categories.length > 0 && (
+                <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-semibold text-slate-900">Suivi en direct</h2>
+                      <p className="text-sm text-slate-500">
+                        Dépenses enregistrées à ce jour · {Math.round(suivi.fractionEcoulee * 100)} % de l’année écoulée
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        suivi.alertes.length > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      {suivi.alertes.length > 0 ? `${suivi.alertes.length} alerte(s)` : 'Aucune alerte'}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-left text-sm">
+                      <thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
+                        <tr>
+                          <th className="py-3">Catégorie</th>
+                          <th className="py-3 text-right">Budget</th>
+                          <th className="py-3 text-right">Consommé</th>
+                          <th className="w-48 py-3 pl-6">Avancement</th>
+                          <th className="py-3 text-right">État</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {suivi.categories.map((categorie) => (
+                          <tr key={categorie.categorie}>
+                            <td className="py-2.5 font-medium text-slate-900">{categorie.categorie}</td>
+                            <td className="py-2.5 text-right text-slate-600">
+                              {categorie.niveau === 'hors_budget' ? '—' : formatMontant.format(categorie.budget)}
+                            </td>
+                            <td className="py-2.5 text-right text-slate-900">{formatMontant.format(categorie.consomme)}</td>
+                            <td className="py-2.5 pl-6">
+                              {categorie.taux !== null && (
+                                <div className="flex items-center gap-2">
+                                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                      className={`h-full rounded-full ${BADGE_NIVEAU[categorie.niveau].barre}`}
+                                      style={{ width: `${Math.min(categorie.taux, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="w-10 text-right text-xs text-slate-500">{categorie.taux}%</span>
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-2.5 text-right">
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${BADGE_NIVEAU[categorie.niveau].classe}`}>
+                                {BADGE_NIVEAU[categorie.niveau].libelle}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {suivi.alertes.length > 0 && (
+                    <ul className="mt-4 space-y-1 border-t border-slate-100 pt-4 text-sm text-slate-700">
+                      {suivi.alertes.map((alerte) => (
+                        <li key={alerte.message}>⚠️ {alerte.message}</li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              )}
 
               {/* Lignes du budget */}
               <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">

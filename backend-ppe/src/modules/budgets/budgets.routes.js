@@ -15,6 +15,7 @@ import {
   validerLignes,
 } from './budgets.calcul.js'
 import { changerStatut, creerBrouillon, listerBudgets, mettreAJourBudget, trouverBudget } from './budgets.repository.js'
+import { calculerSuivi } from './suivi.calcul.js'
 
 // --- KAN-15 : creation et approbation du budget annuel ---
 //
@@ -28,6 +29,7 @@ import { changerStatut, creerBrouillon, listerBudgets, mettreAJourBudget, trouve
 //   POST /api/budgets/:annee/generer     brouillon calcule depuis l'historique
 //   PUT  /api/budgets/:annee             modifier lignes / enveloppe (brouillon)
 //   POST /api/budgets/:annee/transition  { action: soumettre|approuver|rejeter|retravailler }
+//   GET  /api/budgets/:annee/suivi       KAN-17 : consommation par categorie + alertes (admin)
 
 export const budgetsRouter = Router()
 
@@ -179,6 +181,39 @@ budgetsRouter.post('/:annee/transition', requireRole('admin'), avecAnnee, async 
 
     await changerStatut(budget.id, nouveauStatut)
     res.json(await construireDetail(await trouverBudget(req.annee), req.user))
+  } catch (error) {
+    next(error)
+  }
+})
+
+// --- KAN-17 : suivi du budget en direct et alertes de depassement ---
+// Recalcule a chaque appel a partir des depenses enregistrees : des qu'une
+// depense est saisie (KAN-19), l'alerte apparait sur le tableau de bord.
+budgetsRouter.get('/:annee/suivi', requireRole('admin'), avecAnnee, async (req, res, next) => {
+  try {
+    const [budget, depenses] = await Promise.all([
+      trouverBudget(req.annee),
+      getHistoriqueDepenses(req.annee, req.annee),
+    ])
+
+    if (!budget) {
+      return res.json({
+        annee: req.annee,
+        statutBudget: null,
+        categories: [],
+        totaux: null,
+        alertes: [
+          {
+            niveau: 'attention',
+            categorie: null,
+            message: `Aucun budget pour ${req.annee} : les dépenses ne peuvent pas être suivies`,
+          },
+        ],
+      })
+    }
+
+    const suivi = calculerSuivi({ annee: req.annee, lignes: budget.lignes, depenses })
+    res.json({ ...suivi, statutBudget: budget.statut, libelleStatut: LIBELLES_STATUT[budget.statut] })
   } catch (error) {
     next(error)
   }
