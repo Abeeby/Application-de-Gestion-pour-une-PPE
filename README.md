@@ -190,6 +190,55 @@ Le token a la forme `<contenu>.<signature>` : le contenu (`email` + date d'expir
 
 ---
 
+## KAN-15 : Création et approbation du budget annuel
+
+### User story
+
+En tant qu'administrateur, je veux générer le budget annuel à partir de l'historique des dépenses, le structurer par catégories, le répartir automatiquement entre copropriétaires selon leur quote-part, et le faire valider (statuts brouillon → soumis → approuvé), afin de disposer rapidement d'un budget fiable et formellement validé chaque année.
+
+### Fonctionnalités
+
+- **Génération automatique** : pour chaque catégorie, moyenne des dépenses des **3 dernières années complètes** + 2 % d'indexation, arrondie à la dizaine supérieure. L'année en cours n'est pas comptée (elle n'est pas finie : elle sous-estimerait le budget).
+- **Structure par catégories** : l'administrateur ajuste, ajoute ou retire des lignes tant que le budget est en brouillon. La page montre la moyenne historique à côté de chaque montant.
+- **Enveloppe votée ≠ total des lignes** : conformément à la décision d'équipe documentée dans `BD.sql`, l'enveloppe (`prevision_budget`) n'est jamais recalculée depuis les lignes ; l'écart est affiché.
+- **Répartition par lot** avec **la même règle que KAN-22** (`ventilerDepense`) : quote-part, ou parts égales pour l'eau/l'électricité. Part annuelle + acompte mensuel par lot, sans perdre un centime.
+- **Cycle de validation** :
+
+```
+brouillon --soumettre--> soumis --approuver--> approuvé (figé, date d'approbation enregistrée)
+    ^                       |
+    +----retravailler--- rejeté <--rejeter--+
+```
+
+### Droits
+
+| Action | Admin | Copropriétaire |
+|---|---|---|
+| Voir un budget soumis / approuvé / rejeté | ✅ | ✅ (lecture seule) |
+| Voir un brouillon | ✅ | ❌ (404 : travail interne) |
+| Générer, modifier, changer le statut | ✅ | ❌ 403 |
+
+### API
+
+| Méthode | Route | Rôle |
+|---|---|---|
+| GET | `/api/budgets` | liste des budgets |
+| GET | `/api/budgets/:annee` | détail + moyennes historiques + répartition par lot |
+| POST | `/api/budgets/:annee/generer` | crée (ou regénère) le brouillon depuis l'historique |
+| PUT | `/api/budgets/:annee` | `{ lignes: [{ categorie, montant }], enveloppe }` (brouillon uniquement, sinon 409) |
+| POST | `/api/budgets/:annee/transition` | `{ action: "soumettre" \| "approuver" \| "rejeter" \| "retravailler" }` (409 si interdite) |
+
+`POST /api/financial/budgets` (KAN-26) refuse aussi (409) de modifier un budget qui n'est plus en brouillon.
+
+### Tests (`backend-ppe/src/modules/budgets/`)
+
+- `budgets.calcul.test.js` : 14 tests sans base (transitions, années de référence, moyenne + indexation, validation des lignes, répartition au centime près).
+- `budgets.integration.test.js` : 4 tests avec base (cycle complet, brouillon caché au copropriétaire, droits, lignes invalides).
+
+Page : http://localhost:3000/budgets
+
+---
+
 ## KAN-22 : Répartition des charges et rapprochement de comptes
 
 ### User story

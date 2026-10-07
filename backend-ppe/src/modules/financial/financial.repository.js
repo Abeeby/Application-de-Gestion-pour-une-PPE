@@ -84,7 +84,7 @@ async function trouverOuCreerBudgetAnnuel(annee) {
 
   const [resultat] = await pool.query(
     `INSERT INTO Budgets_Annuels (id_ppe, annee, prevision_budget, date_creation, statut)
-     VALUES (?, ?, 0, CURDATE(), 'en attente')`,
+     VALUES (?, ?, 0, CURDATE(), 'brouillon')`,
     [ID_PPE_DEFAUT, annee],
   )
   return resultat.insertId
@@ -131,6 +131,16 @@ export async function getBudgets(annee = new Date().getFullYear()) {
 
 export async function ajouterLigneBudget({ category, planned }, annee = new Date().getFullYear()) {
   const idBudgetAnnuel = await trouverOuCreerBudgetAnnuel(annee)
+
+  // KAN-15 : un budget soumis ou approuve est fige, on ne peut plus y ajouter
+  // de ligne par cette route (sinon le vote de l'assemblee ne voudrait rien dire)
+  const [[budget]] = await pool.query('SELECT statut FROM Budgets_Annuels WHERE id = ?', [idBudgetAnnuel])
+  if (budget.statut !== 'brouillon') {
+    const erreur = new Error(`Le budget ${annee} est « ${budget.statut} » : seul un brouillon est modifiable`)
+    erreur.status = 409
+    throw erreur
+  }
+
   const idCategorie = await trouverOuCreerCategorie(category)
 
   // insertId n'est pas fiable en cas d'UPDATE via ON DUPLICATE KEY (depend du

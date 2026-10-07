@@ -336,8 +336,8 @@ async function seed() {
   }
 
   const [budgetResult] = await pool.query(
-    `INSERT INTO Budgets_Annuels (id_ppe, annee, prevision_budget, date_creation, statut)
-     VALUES (?, ?, ?, CURDATE(), 'approuve')`,
+    `INSERT INTO Budgets_Annuels (id_ppe, annee, prevision_budget, date_creation, statut, date_approbation)
+     VALUES (?, ?, ?, CURDATE(), 'approuve', CURDATE())`,
     [idPpe, ANNEE_BUDGET, LIGNES_BUDGET.reduce((total, ligne) => total + ligne.montant, 0)],
   )
   for (const ligne of LIGNES_BUDGET) {
