@@ -79,6 +79,8 @@ financialRouter.post('/budgets', requireAuth, requireRole('admin'), async (req, 
 
     res.status(201).json({ budget: await ajouterLigneBudget({ category: category.trim(), planned }) })
   } catch (error) {
+    // KAN-15 : budget deja soumis ou approuve -> 409 (et non 500)
+    if (error.status === 409) return res.status(409).json({ error: error.message })
     next(error)
   }
 })

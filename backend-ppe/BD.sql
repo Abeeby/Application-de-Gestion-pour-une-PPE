@@ -253,7 +253,10 @@ CREATE TABLE Budgets_Annuels (
   annee            SMALLINT UNSIGNED NOT NULL,
   prevision_budget DECIMAL(10,2) NOT NULL COMMENT 'enveloppe votee en AG, pas la somme des lignes',
   date_creation    DATE NOT NULL,
-  statut           ENUM('approuve','en attente','rejete') NOT NULL DEFAULT 'en attente',
+  -- KAN-15 : cycle de vie brouillon -> soumis -> approuve (ou rejete ->
+  -- brouillon). Seul un brouillon est modifiable ; un budget approuve est fige.
+  statut           ENUM('brouillon','soumis','approuve','rejete') NOT NULL DEFAULT 'brouillon',
+  date_approbation DATE NULL COMMENT 'KAN-15 : date du vote en AG (statut approuve)',
   CONSTRAINT uq_budget_ppe_annee UNIQUE (id_ppe, annee),
   CONSTRAINT fk_budgets_ppe
     FOREIGN KEY (id_ppe) REFERENCES PPE(id)
