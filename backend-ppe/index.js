@@ -8,6 +8,7 @@ import { revenusRouter } from './src/modules/revenus/revenus.routes.js'
 import { electriciteRouter } from './src/modules/electricite/electricite.routes.js'
 import { depensesHistoriqueRouter, financialRouter } from './src/modules/financial/financial.routes.js'
 import { chargesRouter } from './src/modules/charges/charges.routes.js'
+import { historiqueRouter } from './src/modules/historique/historique.routes.js'
 
 const app = express()
 
@@ -50,6 +51,7 @@ app.use('/api/electricite', electriciteRouter)
 app.use('/api/financial', financialRouter)
 app.use('/api/depenses', depensesHistoriqueRouter)
 app.use('/api/charges', chargesRouter)
+app.use('/api/historique', historiqueRouter)
 
 // Gestionnaire d'erreurs centralise : toute erreur inattendue (SQL, etc.)
 // remonte ici via next(error) plutot que de faire planter le process.

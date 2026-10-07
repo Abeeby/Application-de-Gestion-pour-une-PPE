@@ -431,3 +431,40 @@ CREATE TABLE Votes (
     FOREIGN KEY (id_budget_annuel) REFERENCES Budgets_Annuels(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+
+-- -----------------------------------------------------------------------------
+-- Historique : journal des creations, modifications et suppressions de projets
+-- et de depenses (KAN-35). Table en AJOUT SEUL : l'application n'a aucune
+-- route pour modifier ou supprimer une ligne.
+--
+-- id_element et id_projet ne sont volontairement PAS des cles etrangeres :
+-- l'historique d'un projet ou d'une depense doit survivre a sa suppression.
+-- id_projet regroupe sous un projet les operations sur ses depenses.
+-- id_utilisateur passe a NULL si le compte est supprime : on garde la trace.
+-- details : JSON stocke en TEXT (MariaDB ne type pas vraiment le JSON) :
+--   creation     -> {"apres": {...}}
+--   modification -> {"changements": {"champ": {"avant": x, "apres": y}}}
+--   suppression  -> {"avant": {...}}
+-- -----------------------------------------------------------------------------
+CREATE TABLE Historique (
+  id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_ppe         INT UNSIGNED NOT NULL,
+  id_utilisateur INT UNSIGNED NULL,
+  type_element   ENUM('projet','depense') NOT NULL,
+  id_element     INT UNSIGNED NOT NULL,
+  id_projet      INT UNSIGNED NULL COMMENT 'projet concerne (le projet lui-meme ou celui de la depense)',
+  action         ENUM('creation','modification','suppression') NOT NULL,
+  details        TEXT NOT NULL,
+  date_action    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_historique_ppe
+    FOREIGN KEY (id_ppe) REFERENCES PPE(id)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_historique_utilisateur
+    FOREIGN KEY (id_utilisateur) REFERENCES Utilisateurs(id)
+    ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_historique_date    ON Historique (id_ppe, date_action);
+CREATE INDEX idx_historique_element ON Historique (type_element, id_element);
+CREATE INDEX idx_historique_projet  ON Historique (id_projet);

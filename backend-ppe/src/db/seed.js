@@ -207,7 +207,7 @@ const PRODUCTION_PV = [
 ]
 
 const TABLES_A_VIDER = [
-  'Votes', 'Commenter', 'Transactions', 'Ligne_Budgets', 'Budgets_Annuels',
+  'Historique', 'Votes', 'Commenter', 'Transactions', 'Ligne_Budgets', 'Budgets_Annuels',
   'Devis', 'Releves', 'Compteurs', 'Etapes_Projets', 'Projets', 'Factures',
   'Posseder', 'Appartenir', 'Lots', 'Categories', 'Utilisateurs', 'PPE',
 ]

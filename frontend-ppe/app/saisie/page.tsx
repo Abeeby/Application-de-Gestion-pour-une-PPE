@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Plus, Activity, Calculator } from 'lucide-react'
+import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Plus, Activity, Calculator, ArrowDownRight, Trash2, History } from 'lucide-react'
 
 type Saisie = {
   id: number
@@ -30,10 +30,31 @@ export default function Saisie() {
   const [erreurs, setErreurs] = useState<string[]>([])
   const [message, setMessage] = useState('')
 
+  // KAN-35 : les routes des dépenses exigent d'être connecté (token posé par
+  // le tableau de bord), pour que l'historique sache qui a agi.
+  function enTetes() {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('ppe_token') ?? ''}`,
+    }
+  }
+
+  // Message d'erreur commun aux réponses 401 / 403 / autres
+  async function lireErreurs(reponse: Response) {
+    if (reponse.status === 401) return ['Connectez-vous depuis le tableau de bord pour gérer les dépenses.']
+    if (reponse.status === 403) return ['Action réservée à l’administrateur.']
+    const data = await reponse.json().catch(() => ({}))
+    return data.erreurs ?? [data.error ?? 'Erreur inattendue']
+  }
+
   useEffect(() => {
-    fetch('http://localhost:3001/api/saisies/options')
-      .then(res => res.json())
-      .then(data => {
+    fetch('http://localhost:3001/api/saisies/options', { headers: enTetes() })
+      .then(async res => {
+        if (!res.ok) {
+          setErreurs(await lireErreurs(res))
+          return
+        }
+        const data = await res.json()
         setCategories(data.categories)
         setAppartements(data.appartements)
         setProjets(data.projets)
@@ -43,9 +64,24 @@ export default function Saisie() {
   }, [])
 
   function chargerSaisies() {
-    fetch('http://localhost:3001/api/saisies')
-      .then(res => res.json())
+    fetch('http://localhost:3001/api/saisies', { headers: enTetes() })
+      .then(res => (res.ok ? res.json() : []))
       .then(data => setSaisies(data))
+  }
+
+  async function supprimerSaisie(s: Saisie) {
+    if (!window.confirm(`Supprimer la dépense de ${s.montant} CHF du ${s.date} ?`)) return
+    setErreurs([])
+    setMessage('')
+
+    const reponse = await fetch(`http://localhost:3001/api/saisies/${s.id}`, { method: 'DELETE', headers: enTetes() })
+    if (!reponse.ok) {
+      setErreurs(await lireErreurs(reponse))
+      return
+    }
+
+    setMessage('Dépense supprimée (conservée dans le journal des modifications)')
+    chargerSaisies()
   }
 
   async function envoyerFormulaire(e: React.FormEvent) {
@@ -72,14 +108,12 @@ export default function Saisie() {
 
     const reponse = await fetch('http://localhost:3001/api/saisies', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: enTetes(),
       body: JSON.stringify({ montant: montant.replace(',', '.'), date: `${annee}-${mois}-${jour}`, categorie, appartement, projet, justificatif }),
     })
 
-    const data = await reponse.json()
-
     if (!reponse.ok) {
-      setErreurs(data.erreurs)
+      setErreurs(await lireErreurs(reponse))
       return
     }
 
@@ -141,6 +175,9 @@ export default function Saisie() {
           </Link>
           <Link href="/charges" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
             <Calculator className="h-5 w-5" /> Charges
+          </Link>
+          <Link href="/modifications" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
+            <History className="h-5 w-5" /> Journal
           </Link>
         </nav>
 
@@ -351,6 +388,7 @@ export default function Saisie() {
                       <th className="px-3 py-3">Projet</th>
                       <th className="px-3 py-3">Justificatif</th>
                       <th className="px-3 py-3 text-right">Montant</th>
+                      <th className="px-3 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -362,6 +400,16 @@ export default function Saisie() {
                         <td className="px-3 py-3 text-slate-700">{s.projet}</td>
                         <td className="px-3 py-3 text-slate-700">{s.justificatif || '-'}</td>
                         <td className="px-3 py-3 text-right font-semibold text-slate-900">{s.montant} CHF</td>
+                        <td className="px-3 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => supprimerSaisie(s)}
+                            aria-label="Supprimer la dépense"
+                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
