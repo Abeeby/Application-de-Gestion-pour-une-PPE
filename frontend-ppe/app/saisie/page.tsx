@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BanniereConnexion from '@/components/BanniereConnexion'
 import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
-import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Settings, LogOut, Bell, Upload, Plus, Wallet, ArrowDownRight, Calculator } from 'lucide-react'
+import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Activity, Calculator, ArrowDownRight } from 'lucide-react'
 
 type Saisie = {
   id: number
@@ -143,6 +143,9 @@ export default function Saisie() {
           </Link>
           <Link href="/electricite" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
             <Zap className="h-5 w-5 fill-current" /> Électricité
+          </Link>
+          <Link href="/statistiques" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
+            <Activity className="h-5 w-5" /> Statistiques
           </Link>
           <Link href="/saisie" className="flex items-center gap-3 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-medium text-white shadow-sm transition">
             <FileText className="h-5 w-5" /> Dépenses
