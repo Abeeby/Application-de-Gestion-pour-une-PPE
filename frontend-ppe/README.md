@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend PPE
 
-## Getting Started
+Interface Next.js pour la gestion financière d'une PPE. Le backend Express
+et MySQL/MariaDB doivent être disponibles pour consulter les données.
 
-First, run the development server:
+## Démarrage
+
+Depuis le dossier `frontend-ppe` :
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrir http://localhost:3000 et se connecter avec un compte existant.
+Le rôle administrateur ou copropriétaire provient du backend.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+L'API est appelée sur `http://localhost:3001` par défaut. Pour utiliser une
+autre adresse, définir `NEXT_PUBLIC_API_URL` dans `.env.local`, puis
+redémarrer le frontend :
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```dotenv
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
 
-## Learn More
+La configuration et les comptes de démonstration sont décrits dans le
+[README du backend](../backend-ppe/README.md).
 
-To learn more about Next.js, take a look at the following resources:
+## Pages
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Adresse | Fonction |
+|---|---|
+| `/` | Connexion et tableau de bord |
+| `/saisie` | Saisie des dépenses |
+| `/revenus` | Saisie et import des revenus |
+| `/historique` | Comparaison des dépenses entre exercices |
+| `/projets` | Suivi des projets |
+| `/electricite` | Production photovoltaïque |
+| `/charges` | Répartition des charges et rapprochement |
+| `/statistiques` | Graphiques financiers |
+| `/rapports` | Rapports budgétaires et exports CSV, réservés à l'administrateur |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## KAN-23 : rapports et exports
 
-## Deploy on Vercel
+1. Se connecter en administrateur depuis le tableau de bord.
+2. Ouvrir **Rapports** dans le menu.
+3. Choisir la période (mensuelle, trimestrielle ou annuelle), l'année et,
+   selon la période, le mois ou le trimestre.
+4. Cliquer sur **Générer le rapport**.
+5. Consulter les totaux, le suivi du budget annuel et les transactions.
+6. Utiliser les boutons d'export des transactions CSV, de synthèse CSV ou
+   d'impression du rapport.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Le budget reste annuel ; les dépenses cumulées vont du 1er janvier à la
+fin de la période choisie. Sans budget, les mouvements restent visibles,
+mais les montants budgétaires sont indiqués comme non définis.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Si la période est changée après une génération, il faut générer un nouveau
+rapport. Les exports concernent la période du rapport affiché et relisent
+ses données actuelles en base. Les CSV s'ouvrent dans un tableur et peuvent
+être importés dans un outil comptable en associant les colonnes.
+
+L'impression masque les contrôles, utilise le format A4 paysage et répète
+les en-têtes des tableaux qui continuent sur plusieurs pages. Les exports
+dédiés PDF et Excel relèvent de KAN-31.
+
+## Vérification
+
+```bash
+npm run build
+```
+
+Les tests de calcul, d'export et d'accès aux rapports se trouvent dans
+`backend-ppe/src/modules/rapports`. Voir leurs commandes dans le
+[README du backend](../backend-ppe/README.md#kan-23--rapports-périodiques-et-export-comptable).

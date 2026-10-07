@@ -77,12 +77,14 @@ src/modules/
   electricite/                production photovoltaïque (KAN-32)
   financial/                 tableau de bord (résumé, budgets, historique)
   reference/                 listes partagées (catégories, lots, projets)
-db/migrations/                évolutions du schéma appliquées après BD.sql
+  charges/                   répartition et rapprochement (KAN-22)
+  rapports/                  rapports périodiques et exports CSV (KAN-23)
+db/migrations/                anciennes migrations conservées pour l'historique
 ```
 
-Chaque module suit le même découpage : `*.routes.js` (Express),
-`*.repository.js` (SQL), `*.validation.js` (règles métier, testées sans DB
-quand c'est possible - voir `*.validation.test.js`).
+Les modules séparent les routes Express (`*.routes.js`), l'accès SQL
+(`*.repository.js`) et les règles de validation ou de calcul. Ces règles
+sont testées sans base de données quand c'est possible.
 
 ## Authentification
 
@@ -138,7 +140,52 @@ projet (`Transactions.id_projet`), sauf si `progression` est fournie
 explicitement (stockée dans `Projets.progression_manuelle` - utile pour un
 projet clôturé sans avoir consommé 100% du budget).
 
-## Exemple de requête
+## KAN-23 : rapports périodiques et export comptable
+
+Page `/rapports`, accessible dans le menu de l'administrateur. Les routes
+de génération et d'export exigent également un token et le rôle `admin`.
+
+- `GET /api/rapports?type=annuel&annee=2026`
+- `GET /api/rapports?type=trimestriel&annee=2026&valeur=3`
+- `GET /api/rapports?type=mensuel&annee=2026&valeur=9`
+- `GET /api/rapports/export?...&contenu=transactions` : détail comptable CSV.
+- `GET /api/rapports/export?...&contenu=synthese` : suivi par catégorie CSV.
+
+Le rapport présente revenus, dépenses, solde et détail de la période. Il
+compare aussi le budget annuel aux dépenses cumulées depuis le 1er janvier
+jusqu'à la fin de cette période. Le budget n'est pas proratisé. L'enveloppe
+annuelle et la somme des lignes budgétaires restent deux valeurs distinctes.
+Les budgets non approuvés, les catégories sans budget et les dépassements
+sont identifiés. Sans budget, aucun montant disponible n'est inventé.
+
+Les CSV sont en UTF-8 avec BOM, séparateur point-virgule et virgule décimale.
+L'export des transactions comprend l'identifiant, la date, le type, la catégorie,
+la description, le lot, le projet, la facture, le débit et le crédit en CHF.
+C'est un format générique : mapper les colonnes dans l'outil comptable choisi.
+Les exports relisent les données actuelles de la période du rapport affiché.
+La page propose aussi une impression du rapport. KAN-31 reste consacré aux
+exports PDF et Excel.
+
+Tests unitaires (sans MySQL) :
+
+```powershell
+node --test src/modules/rapports/rapports.test.js
+```
+
+Cette commande exécute 14 tests. La commande suivante ajoute 4 tests
+d'intégration, soit 18 tests KAN-23 au total. Les commandes sont à lancer
+depuis le dossier `backend-ppe`.
+
+Tests d'intégration de lecture (base disponible et comptes de démonstration) :
+
+```powershell
+$env:PPE_REPORTS_DB_TESTS='1'
+node --test src/modules/rapports/*.test.js
+```
+
+Ces tests ne créent, ne modifient ni ne suppriment de données.
+
+## Exemple de connexion
 
 ```bash
 curl -X POST http://localhost:3001/api/auth/login \

@@ -2,6 +2,8 @@
 
 Créer une application web pour simplifier la gestion financière d'une Propriété par Étage (PPE). L'application doit permettre aux administrateurs et copropriétaires d'accéder aux comptes, budgets, dépenses (comme l'électricité), et statistiques financières.
 
+Le frontend utilise Next.js et le backend Express. Les données sont enregistrées dans MySQL/MariaDB. La connexion se fait avec un email et un mot de passe ; le rôle dépend du compte enregistré en base.
+
 ---
 
 ## KAN-19 : Module de saisie des dépenses
@@ -63,9 +65,9 @@ Réponse `201` si tout va bien, `400` avec la liste des erreurs sinon :
 { "erreurs": ["Le montant doit etre un nombre superieur a 0"] }
 ```
 
-### Limite connue
+### Stockage
 
-Les dépenses sont gardées en mémoire du serveur : elles disparaissent au redémarrage du backend. Le projet n'a pas encore de base de données.
+Les dépenses sont enregistrées dans la table `Transactions` de MySQL/MariaDB et restent disponibles après un redémarrage du backend.
 
 ---
 
@@ -79,14 +81,13 @@ En tant que copropriétaire ou administrateur, je veux enregistrer une dépense 
 
 - Ajout d'un champ « Projet » (optionnel) au formulaire de saisie KAN-19, en complément de l'appartement (déjà présent)
 - Liste déroulante des projets alimentée par le serveur (`GET /api/saisies/options`)
-- Ajout de `Transactions.id_lot` dans `backend-ppe/BD.sql`, pour permettre à terme de rattacher une dépense réelle à un lot précis en base (nullable : une charge commune n'a pas de lot)
+- Rattachement en base avec `Transactions.id_lot` et `Transactions.id_projet` (nullable : une charge commune peut ne pas avoir de lot ou de projet)
 
-### Tests validants (`backend-ppe/saisies.test.js`)
+### Tests de validation (`backend-ppe/src/modules/depenses/depenses.validation.test.js`)
 
-- `refuse un appartement qui n existe pas` — l'appartement reste obligatoire
-- `refuse un projet qui n existe pas` — un projet fourni doit exister dans la liste
-- `accepte une depense sans projet` — le rattachement au projet est optionnel
-- `ajouterSaisie garde tous les champs de la depense` — vérifie que `projet` et `appartement` sont bien conservés sur la dépense enregistrée
+- Refus d'un appartement absent de la liste de référence
+- Refus d'un projet absent de la liste de référence
+- Acceptation d'une dépense sans projet
 
 ---
 
@@ -203,36 +204,86 @@ Fichiers : `backend-ppe/src/modules/charges/charges.calcul.test.js` (1–8) et `
 
 ---
 
+## KAN-23 : Génération de rapports et export comptable
+
+En tant qu'administrateur, je veux produire des rapports périodiques de suivi budgétaire et exporter les données vers un outil comptable, afin de communiquer l'état des finances et d'éviter une double saisie.
+
+### Fonctionnalités
+
+- Page `/rapports`, accessible depuis le menu de l'administrateur
+- Choix d'une période mensuelle, trimestrielle ou annuelle
+- Revenus, dépenses, solde et tableau des transactions de la période
+- Suivi du budget annuel par catégorie, avec dépenses cumulées du 1er janvier à la fin de la période
+- Signalement des budgets non approuvés, des dépassements et des catégories sans budget
+- Export CSV des transactions avec colonnes débit et crédit en CHF
+- Export CSV de la synthèse budgétaire par catégorie
+- Impression du rapport avec répétition des en-têtes sur les tableaux de plusieurs pages
+
+Le budget reste annuel, sans prorata. L'enveloppe annuelle et la somme des lignes par catégorie restent distinctes. Sans budget enregistré, le rapport affiche les mouvements mais ne calcule aucun restant budgétaire.
+
+Les CSV sont en UTF-8, avec séparateur point-virgule et virgule décimale. Ils relisent les données actuelles de la période du rapport affiché. Le format est générique : les colonnes doivent être associées à celles de l'outil comptable utilisé. Les exports dédiés PDF et Excel relèvent de KAN-31.
+
+### API (authentification et rôle `admin` requis)
+
+- **GET** `/api/rapports?type=annuel&annee=2026`
+- **GET** `/api/rapports?type=trimestriel&annee=2026&valeur=3`
+- **GET** `/api/rapports?type=mensuel&annee=2026&valeur=9`
+- **GET** `/api/rapports/export?type=mensuel&annee=2026&valeur=9&contenu=transactions`
+- **GET** `/api/rapports/export?type=mensuel&annee=2026&valeur=9&contenu=synthese`
+
+Les paramètres invalides sont refusés avec `400`, l'absence de session avec `401` et l'accès d'un copropriétaire avec `403`.
+
+### Tests
+
+14 tests unitaires couvrent les périodes, les calculs au centime, le suivi annuel et les exports CSV. 4 tests d'intégration vérifient les droits, les totaux en base et les réponses de l'API. Ces derniers sont activés explicitement et ne modifient aucune donnée. Voir les commandes dans le [README du backend](backend-ppe/README.md#kan-23--rapports-périodiques-et-export-comptable).
+
+---
+
 ## Structure des fichiers
 
 ```
 backend-ppe/            API Express (port 3001)
-  index.js              Routes de l'application
-  saisies.js            KAN-19 : validation et enregistrement des dépenses
-  saisies.test.js       KAN-19 : tests
-  projets.js            KAN-37 : gestion des droits et modèle de projets
-  projets.test.js       Tests du backend
+  index.js              Assemblage des routes de l'application
+  BD.sql                Schéma MySQL/MariaDB
+  src/
+    config/             Configuration et constantes
+    db/                 Connexion et données de démonstration
+    middleware/         Authentification et contrôle des rôles
+    modules/
+      auth/             Connexion des utilisateurs
+      depenses/         Saisie et validation des dépenses
+      revenus/          Saisie et import des revenus
+      projets/          Gestion des projets et des droits
+      electricite/      Production photovoltaïque
+      financial/        Résumé, budgets et historique
+      reference/        Catégories, lots et projets
+      charges/          Répartition et rapprochement (KAN-22)
+      rapports/         Rapports et exports CSV (KAN-23)
 
 frontend-ppe/           Application Next.js (port 3000)
   app/
     page.tsx            Connexion et tableau de bord (KAN-12)
-    saisie/
-      page.tsx          KAN-19 : formulaire de saisie
-    historique/
-      page.tsx          KAN-29 : filtres et tableau comparatif
-    projets/
-      page.tsx          KAN-37 : suivi des projets et gestion des droits
+    saisie/             Formulaire de dépenses (KAN-19)
+    revenus/            Formulaire et import des revenus
+    historique/         Comparaison des exercices (KAN-29)
+    projets/            Suivi des projets et gestion des droits
+    electricite/        Suivi photovoltaïque
+    charges/            Décomptes et rapprochement (KAN-22)
+    statistiques/       Graphiques financiers (KAN-30)
+    rapports/           Rapports et exports CSV (KAN-23)
 ```
 
 ### Catégories disponibles
 
-Entretien, Assurances, Nettoyage, Eau & Electricite, Administration, Reparations
+Les catégories sont lues dans la table `Categories`. Les formulaires proposent celles qui correspondent au type de mouvement (dépense ou revenu).
 
 ---
 
 ## Lancer le projet
 
 Le backend et le frontend doivent tourner en même temps, dans deux terminaux séparés.
+
+MySQL/MariaDB doit être démarré et la base configurée dans `backend-ppe/.env`. Pour une première installation, suivre le [README du backend](backend-ppe/README.md#mise-en-route). Si la base contient déjà des données à conserver, ne pas réimporter `BD.sql` ni relancer le seed, qui réinitialisent les données.
 
 **Terminal 1 — Backend** (port 3001)
 
@@ -256,17 +307,40 @@ Les pages sont ensuite accessibles à ces adresses :
 |------|---------|
 | Connexion et tableau de bord | http://localhost:3000 |
 | Saisie des dépenses | http://localhost:3000/saisie |
+| Saisie des revenus | http://localhost:3000/revenus |
 | Historique des dépenses | http://localhost:3000/historique |
 | Projets spécifiques PPE | http://localhost:3000/projets |
+| Production photovoltaïque | http://localhost:3000/electricite |
+| Répartition des charges | http://localhost:3000/charges |
+| Graphiques financiers | http://localhost:3000/statistiques |
+| Rapports budgétaires (administrateur) | http://localhost:3000/rapports |
 
 ---
 
 Voici le lien du prototype:
 
 lien: https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1
+
 ## Lancer les tests
 
-Les tests utilisent le testeur intégré de Node, il n'y a aucune librairie à installer.
+Les tests utilisent le testeur intégré de Node. Installer les dépendances du backend avant de les lancer.
 
+```bash
+cd backend-ppe
+node --test src/modules/rapports/rapports.test.js
 ```
-Puis ouvrir http://localhost:3000
+
+Pour les tests d'intégration KAN-23, la base doit être disponible et les comptes de démonstration présents :
+
+```powershell
+cd backend-ppe
+$env:PPE_REPORTS_DB_TESTS='1'
+node --test src/modules/rapports/*.test.js
+```
+
+Pour vérifier la compilation du frontend :
+
+```bash
+cd frontend-ppe
+npm run build
+```
