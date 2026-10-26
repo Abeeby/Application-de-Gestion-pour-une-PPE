@@ -1,5 +1,5 @@
 import express from 'express'
-import { env } from './src/config/env.js'
+import { env, verifierEnv } from './src/config/env.js'
 import { verifierConnexionDb } from './src/db/pool.js'
 import { authRouter } from './src/modules/auth/auth.routes.js'
 import { projetsRouter } from './src/modules/projets/projets.routes.js'
@@ -9,6 +9,9 @@ import { electriciteRouter } from './src/modules/electricite/electricite.routes.
 import { depensesHistoriqueRouter, financialRouter } from './src/modules/financial/financial.routes.js'
 import { chargesRouter } from './src/modules/charges/charges.routes.js'
 import { historiqueRouter } from './src/modules/historique/historique.routes.js'
+
+// Arrete tout de suite le serveur si .env est incomplet (message clair)
+verifierEnv()
 
 const app = express()
 
@@ -57,8 +60,7 @@ app.use('/api/historique', historiqueRouter)
 // remonte ici via next(error) plutot que de faire planter le process.
 app.use((error, req, res, next) => {
   console.error(error)
-  console.log("test")
- 
+
   res.status(500).json({
     error: 'Erreur interne du serveur',
     ...(env.isDev && {

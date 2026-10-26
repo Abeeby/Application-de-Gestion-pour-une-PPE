@@ -63,9 +63,9 @@ Réponse `201` si tout va bien, `400` avec la liste des erreurs sinon :
 { "erreurs": ["Le montant doit etre un nombre superieur a 0"] }
 ```
 
-### Limite connue
+### Stockage
 
-Les dépenses sont gardées en mémoire du serveur : elles disparaissent au redémarrage du backend. Le projet n'a pas encore de base de données.
+Depuis le refactor du 28.09 (PR #18), les dépenses sont enregistrées dans la base MySQL/MariaDB (table `Transactions`) et ne disparaissent plus au redémarrage du backend.
 
 ---
 
@@ -206,23 +206,30 @@ Fichiers : `backend-ppe/src/modules/charges/charges.calcul.test.js` (1–8) et `
 ## Structure des fichiers
 
 ```
-backend-ppe/            API Express (port 3001)
-  index.js              Routes de l'application
-  saisies.js            KAN-19 : validation et enregistrement des dépenses
-  saisies.test.js       KAN-19 : tests
-  projets.js            KAN-37 : gestion des droits et modèle de projets
-  projets.test.js       Tests du backend
+backend-ppe/                 API Express (port 3001) branchée sur MySQL/MariaDB
+  index.js                   assemblage de l'app (middlewares, routes, erreurs)
+  BD.sql                     création de la base et de toutes les tables
+  src/config/                variables d'environnement (.env), constantes
+  src/db/                    pool MySQL + script de seed (données de démo)
+  src/middleware/auth.js     requireAuth / requireRole
+  src/modules/<module>/      un dossier par fonctionnalité :
+                             *.routes.js (Express), *.repository.js (SQL),
+                             *.validation.js (règles), *.test.js (tests)
+  saisies.js, projets.js,    ancienne version "en mémoire" (avant la base),
+  revenus.js (+ .test.js)    plus utilisée par le serveur
 
-frontend-ppe/           Application Next.js (port 3000)
+frontend-ppe/                Application Next.js (port 3000)
   app/
-    page.tsx            Connexion et tableau de bord (KAN-12)
-    saisie/
-      page.tsx          KAN-19 : formulaire de saisie
-    historique/
-      page.tsx          KAN-29 : filtres et tableau comparatif
-    projets/
-      page.tsx          KAN-37 : suivi des projets et gestion des droits
+    page.tsx                 connexion et tableau de bord (KAN-12 / KAN-26)
+    saisie/page.tsx          KAN-19 : saisie des dépenses
+    revenus/page.tsx         KAN-18 : saisie des revenus
+    historique/page.tsx      KAN-29 : historique pluriannuel
+    electricite/page.tsx     KAN-32 : production photovoltaïque
+    projets/page.tsx         KAN-33 / KAN-37 : projets et droits
+    charges/page.tsx         KAN-22 : répartition des charges
 ```
+
+Le détail du backend (installation de la base, endpoints, comptes de démo) est dans [`backend-ppe/README.md`](backend-ppe/README.md).
 
 ### Catégories disponibles
 
@@ -232,13 +239,22 @@ Entretien, Assurances, Nettoyage, Eau & Electricite, Administration, Reparations
 
 ## Lancer le projet
 
-Le backend et le frontend doivent tourner en même temps, dans deux terminaux séparés.
+Il faut **3 choses** qui tournent : la base de données, le backend et le frontend.
+
+**0 — Base de données** (une seule fois, voir `backend-ppe/README.md`)
+
+```bash
+cd backend-ppe
+mysql -u root -p < BD.sql      # crée la base PPE (efface l'ancienne !)
+cp .env.example .env           # puis mettre vos identifiants MySQL
+npm install
+npm run seed                   # données de démo + comptes de connexion
+```
 
 **Terminal 1 — Backend** (port 3001)
 
 ```bash
 cd backend-ppe
-npm install
 npm start
 ```
 
@@ -256,17 +272,32 @@ Les pages sont ensuite accessibles à ces adresses :
 |------|---------|
 | Connexion et tableau de bord | http://localhost:3000 |
 | Saisie des dépenses | http://localhost:3000/saisie |
+| Saisie des revenus | http://localhost:3000/revenus |
 | Historique des dépenses | http://localhost:3000/historique |
+| Électricité | http://localhost:3000/electricite |
 | Projets spécifiques PPE | http://localhost:3000/projets |
+| Répartition des charges | http://localhost:3000/charges |
 
 ---
 
-Voici le lien du prototype:
-
-lien: https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1
-## Lancer les tests
+## Lancer les tests et le lint
 
 Les tests utilisent le testeur intégré de Node, il n'y a aucune librairie à installer.
 
+```bash
+cd backend-ppe
+npm test          # sans base : les tests d'intégration sont "skipped"
+                  # avec base + .env : tous les tests tournent
 ```
-Puis ouvrir http://localhost:3000
+
+```bash
+cd frontend-ppe
+npm run lint      # vérifie le code React/TypeScript avec ESLint
+npm run build     # vérifie que l'application compile
+```
+
+---
+
+## Prototype
+
+Lien du prototype Figma : https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1

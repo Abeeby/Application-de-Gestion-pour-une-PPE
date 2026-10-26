@@ -1,5 +1,5 @@
 // Script de peuplement de la base PPE avec des donnees de demonstration.
-// A executer une fois BD.sql et les migrations de db/migrations/ appliquees :
+// A executer une fois BD.sql charge (db/migrations/ est obsolete, ne pas le rejouer) :
 //   npm run seed
 //
 // Le script est destructif : il vide les tables applicatives avant de les
@@ -7,7 +7,10 @@
 // Ne JAMAIS lancer ce script contre une base de production.
 
 import bcrypt from 'bcryptjs'
+import { verifierEnv } from '../config/env.js'
 import { pool } from './pool.js'
+
+verifierEnv()
 
 const NOM_PPE = 'PPE Résidence Exemple'
 const ADRESSE_PPE = 'Rue de la Copropriété 1, 1400 Yverdon-les-Bains'
