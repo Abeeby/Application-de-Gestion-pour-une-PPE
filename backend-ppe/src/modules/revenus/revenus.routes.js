@@ -1,11 +1,17 @@
 import { Router } from 'express'
 import multer from 'multer'
+import { requireAuth, requireRole } from '../../middleware/auth.js'
 import * as XLSX from 'xlsx'
 import { getCategoriesParType, getLotsReferences } from '../reference/reference.repository.js'
 import { ajouterRevenu, listerRevenus } from './revenus.repository.js'
 import { normaliserDateImport, validerRevenu } from './revenus.validation.js'
 
 export const revenusRouter = Router()
+// KAN-12 : toutes ces routes exigent une session valide (401 sinon).
+// Roles autorises : administrateur et coproprietaire, comme le demandent les
+// user stories (meme regle que la saisie des depenses, KAN-36).
+revenusRouter.use(requireAuth, requireRole('admin', 'owner'))
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } })
 
 // --- KAN-18 : module de saisie des revenus ---

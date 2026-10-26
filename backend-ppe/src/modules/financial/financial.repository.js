@@ -1,47 +1,52 @@
 import { pool } from '../../db/pool.js'
 import { ID_PPE_DEFAUT } from '../../config/constants.js'
+import { calculerResume } from './financial.calcul.js'
 
 /**
- * Resume financier global, calcule a partir des vraies transactions.
- * NOTE : le schema ne modelise pas de table "Comptes bancaires" ; le solde
- * consolide est donc derive (recettes - depenses) plutot que la somme de
- * comptes independants comme dans l'ancien mock.
+ * KAN-26 : resume financier de l'exercice `annee` (annee en cours par defaut).
+ * Les totaux ne portent que sur l'annee demandee, et le taux d'utilisation du
+ * budget compare les depenses au budget vote (voir financial.calcul.js).
  */
-export async function getSummary() {
+export async function getSummary(annee = new Date().getFullYear()) {
   const [[totaux]] = await pool.query(
     `SELECT
        COALESCE(SUM(CASE WHEN type = 'recette' THEN montant ELSE 0 END), 0) AS total_recettes,
        COALESCE(SUM(CASE WHEN type = 'depense' THEN montant ELSE 0 END), 0) AS total_depenses
      FROM Transactions
-     WHERE id_ppe = ?`,
-    [ID_PPE_DEFAUT],
+     WHERE id_ppe = ? AND YEAR(date_transaction) = ?`,
+    [ID_PPE_DEFAUT, annee],
   )
 
-  const totalIncome = Number(totaux.total_recettes)
-  const totalExpenses = Number(totaux.total_depenses)
+  const lignesBudget = await getBudgets(annee)
 
-  return {
-    totalBalance: totalIncome - totalExpenses,
-    totalIncome,
-    totalExpenses,
-    monthlyForecast: totalIncome - totalExpenses,
-    activeAccounts: 1,
-    budgetUsage: Math.round((totalExpenses / Math.max(totalIncome, 1)) * 100),
-  }
+  return calculerResume({
+    annee,
+    recettes: totaux.total_recettes,
+    depenses: totaux.total_depenses,
+    lignesBudget,
+  })
 }
 
 /**
  * Compte unique derive des transactions (pas de table Comptes dans le schema
- * actuel). A remplacer par une vraie table si le suivi multi-comptes devient
- * necessaire.
+ * actuel). Solde depuis le debut (toutes annees confondues), contrairement au
+ * resume qui ne porte que sur l'exercice en cours. A remplacer par une vraie
+ * table si le suivi multi-comptes devient necessaire.
  */
 export async function getAccounts() {
-  const summary = await getSummary()
+  const [[totaux]] = await pool.query(
+    `SELECT
+       COALESCE(SUM(CASE WHEN type = 'recette' THEN montant ELSE -montant END), 0) AS solde
+     FROM Transactions
+     WHERE id_ppe = ?`,
+    [ID_PPE_DEFAUT],
+  )
+
   return [
     {
       id: 'compte-ppe',
       name: 'Compte PPE (calculé)',
-      balance: summary.totalBalance,
+      balance: Number(totaux.solde),
     },
   ]
 }
@@ -79,7 +84,7 @@ async function trouverOuCreerBudgetAnnuel(annee) {
 
   const [resultat] = await pool.query(
     `INSERT INTO Budgets_Annuels (id_ppe, annee, prevision_budget, date_creation, statut)
-     VALUES (?, ?, 0, CURDATE(), 'en attente')`,
+     VALUES (?, ?, 0, CURDATE(), 'brouillon')`,
     [ID_PPE_DEFAUT, annee],
   )
   return resultat.insertId
@@ -126,6 +131,16 @@ export async function getBudgets(annee = new Date().getFullYear()) {
 
 export async function ajouterLigneBudget({ category, planned }, annee = new Date().getFullYear()) {
   const idBudgetAnnuel = await trouverOuCreerBudgetAnnuel(annee)
+
+  // KAN-15 : un budget soumis ou approuve est fige, on ne peut plus y ajouter
+  // de ligne par cette route (sinon le vote de l'assemblee ne voudrait rien dire)
+  const [[budget]] = await pool.query('SELECT statut FROM Budgets_Annuels WHERE id = ?', [idBudgetAnnuel])
+  if (budget.statut !== 'brouillon') {
+    const erreur = new Error(`Le budget ${annee} est « ${budget.statut} » : seul un brouillon est modifiable`)
+    erreur.status = 409
+    throw erreur
+  }
+
   const idCategorie = await trouverOuCreerCategorie(category)
 
   // insertId n'est pas fiable en cas d'UPDATE via ON DUPLICATE KEY (depend du

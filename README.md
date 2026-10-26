@@ -159,6 +159,120 @@ En tant que membre de la PPE (administrateur ou copropriétaire), je veux que l'
 
 ---
 
+## KAN-12 : Authentification et rôles
+
+### User story
+
+En tant que membre de la PPE, je veux me connecter avec mon email et mon mot de passe, afin que seules les personnes autorisées accèdent aux données financières, chacune selon son rôle.
+
+### Comment ça marche
+
+1. `POST /api/auth/login` vérifie le mot de passe (hash **bcrypt** en base) et renvoie un **token signé**.
+2. Le frontend garde ce token (`localStorage`, clé `ppe_token`) et l'envoie à chaque appel : `Authorization: Bearer <token>` (fichier `frontend-ppe/lib/api.ts`).
+3. Le backend vérifie le token (`requireAuth`) puis le rôle (`requireRole`) avant de répondre.
+
+Le token a la forme `<contenu>.<signature>` : le contenu (`email` + date d'expiration) est signé avec **HMAC-SHA256** et un secret connu du serveur seul (`AUTH_SECRET` dans `.env`). Modifier le contenu, ou fabriquer un token à la main, casse la signature → `401`.
+
+### Qui a accès à quoi
+
+| Données | Non connecté | Copropriétaire (`owner`) | Administrateur (`admin`) |
+|---|---|---|---|
+| Tableau de bord, dépenses, revenus, historique, électricité | ❌ 401 | ✅ | ✅ |
+| Projets : consulter | ❌ 401 | ✅ | ✅ |
+| Projets : créer / modifier / supprimer (KAN-37) | ❌ 401 | ❌ 403 | ✅ |
+| Budgets : créer (`POST /api/financial/budgets`) | ❌ 401 | ❌ 403 | ✅ |
+| Répartition des charges (KAN-22) | ❌ 401 | ❌ 403 | ✅ |
+
+### Tests (`backend-ppe/src/modules/auth/`)
+
+- `auth.token.test.js` (14 tests, sans base) : token valide accepté ; faux token, contenu modifié, mauvais secret, token expiré refusés ; règles du secret.
+- `auth.integration.test.js` (6 tests, base requise sinon sautés) : 401 sur toutes les routes de données sans token, faux token admin refusé, accès 200 pour admin et copropriétaire connectés.
+
+---
+
+## KAN-15 : Création et approbation du budget annuel
+
+### User story
+
+En tant qu'administrateur, je veux générer le budget annuel à partir de l'historique des dépenses, le structurer par catégories, le répartir automatiquement entre copropriétaires selon leur quote-part, et le faire valider (statuts brouillon → soumis → approuvé), afin de disposer rapidement d'un budget fiable et formellement validé chaque année.
+
+### Fonctionnalités
+
+- **Génération automatique** : pour chaque catégorie, moyenne des dépenses des **3 dernières années complètes** + 2 % d'indexation, arrondie à la dizaine supérieure. L'année en cours n'est pas comptée (elle n'est pas finie : elle sous-estimerait le budget).
+- **Structure par catégories** : l'administrateur ajuste, ajoute ou retire des lignes tant que le budget est en brouillon. La page montre la moyenne historique à côté de chaque montant.
+- **Enveloppe votée ≠ total des lignes** : conformément à la décision d'équipe documentée dans `BD.sql`, l'enveloppe (`prevision_budget`) n'est jamais recalculée depuis les lignes ; l'écart est affiché.
+- **Répartition par lot** avec **la même règle que KAN-22** (`ventilerDepense`) : quote-part, ou parts égales pour l'eau/l'électricité. Part annuelle + acompte mensuel par lot, sans perdre un centime.
+- **Cycle de validation** :
+
+```
+brouillon --soumettre--> soumis --approuver--> approuvé (figé, date d'approbation enregistrée)
+    ^                       |
+    +----retravailler--- rejeté <--rejeter--+
+```
+
+### Droits
+
+| Action | Admin | Copropriétaire |
+|---|---|---|
+| Voir un budget soumis / approuvé / rejeté | ✅ | ✅ (lecture seule) |
+| Voir un brouillon | ✅ | ❌ (404 : travail interne) |
+| Générer, modifier, changer le statut | ✅ | ❌ 403 |
+
+### API
+
+| Méthode | Route | Rôle |
+|---|---|---|
+| GET | `/api/budgets` | liste des budgets |
+| GET | `/api/budgets/:annee` | détail + moyennes historiques + répartition par lot |
+| POST | `/api/budgets/:annee/generer` | crée (ou regénère) le brouillon depuis l'historique |
+| PUT | `/api/budgets/:annee` | `{ lignes: [{ categorie, montant }], enveloppe }` (brouillon uniquement, sinon 409) |
+| POST | `/api/budgets/:annee/transition` | `{ action: "soumettre" \| "approuver" \| "rejeter" \| "retravailler" }` (409 si interdite) |
+
+`POST /api/financial/budgets` (KAN-26) refuse aussi (409) de modifier un budget qui n'est plus en brouillon.
+
+### Tests (`backend-ppe/src/modules/budgets/`)
+
+- `budgets.calcul.test.js` : 14 tests sans base (transitions, années de référence, moyenne + indexation, validation des lignes, répartition au centime près).
+- `budgets.integration.test.js` : 4 tests avec base (cycle complet, brouillon caché au copropriétaire, droits, lignes invalides).
+
+Page : http://localhost:3000/budgets
+
+---
+
+## KAN-17 : Suivi du budget en direct et alertes de dépassement
+
+### User story
+
+En tant qu'administrateur, je veux visualiser à tout moment l'état du budget consommé par catégorie et recevoir une alerte automatique en cas de dépassement, afin de pouvoir réagir avant que la situation ne devienne problématique.
+
+### Règles d'alerte (par catégorie)
+
+| Niveau | Quand ? |
+|---|---|
+| 🔴 **Dépassé** | consommé > budget |
+| 🟠 **Attention** | ≥ 90 % du budget consommé, **ou** au rythme actuel la catégorie dépassera son budget avant le 31 décembre (projection = consommé ÷ part de l'année écoulée, seulement après le 1er trimestre pour éviter les fausses alertes de janvier) |
+| 🔵 **Hors budget** | dépense dans une catégorie qui n'a pas de ligne au budget |
+| 🟢 **OK** | sinon |
+
+### Où apparaissent les alertes ?
+
+- **Tableau de bord** : carte « Alertes budgétaires » + pastille rouge sur la cloche avec le nombre d'alertes (avant : 3 alertes écrites en dur).
+- **Page Budgets** : section « Suivi en direct » (budget, consommé, barre d'avancement, état) pour l'année choisie.
+- **Automatique** : rien à lancer, le suivi est recalculé à chaque affichage depuis les dépenses enregistrées. Démo : saisir une dépense « Électricité » de 1 500 CHF → l'alerte « Budget dépassé » apparaît sur le tableau de bord.
+
+Les chiffres sont cohérents avec KAN-26 : le total suivi est le même que la carte « Budget restant » du tableau de bord.
+
+### API
+
+`GET /api/budgets/:annee/suivi` (administrateur, 403 sinon) → `{ fractionEcoulee, categories: [{ categorie, budget, consomme, restant, taux, projection, niveau }], alertes: [{ niveau, categorie, message }], totaux }`. Sans budget pour l'année : une alerte le signale.
+
+### Tests
+
+- `suivi.calcul.test.js` : 10 tests sans base (part de l'année écoulée, chaque niveau, projection, tri des alertes).
+- `suivi.integration.test.js` : 3 tests avec base (vrai dépassement en base sur l'année 2001, droits, absence de budget).
+
+---
+
 ## KAN-22 : Répartition des charges et rapprochement de comptes
 
 ### User story

@@ -17,6 +17,7 @@ import {
   Folder,
   LayoutDashboard,
   LogOut,
+  PiggyBank,
   Plus,
   Settings,
   Users,
@@ -34,13 +35,30 @@ type User = {
   role: Role
 }
 
+// KAN-26 : resume de l'exercice renvoye par GET /api/financial/summary
 type Summary = {
+  annee: number
   totalBalance: number
   totalIncome: number
   totalExpenses: number
-  monthlyForecast: number
-  activeAccounts: number
+  budgetTotal: number
+  budgetUtilise: number
+  budgetRestant: number
   budgetUsage: number
+  activeAccounts: number
+}
+
+// KAN-17 : alerte budgetaire renvoyee par GET /api/budgets/:annee/suivi
+type AlerteBudget = {
+  niveau: 'depasse' | 'attention' | 'hors_budget'
+  categorie: string | null
+  message: string
+}
+
+const STYLE_ALERTE: Record<AlerteBudget['niveau'], { cadre: string; icone: string; titre: string }> = {
+  depasse: { cadre: 'border-rose-200 bg-rose-50', icone: 'text-rose-600', titre: 'Budget dépassé' },
+  attention: { cadre: 'border-amber-200 bg-amber-50', icone: 'text-amber-600', titre: 'Risque de dépassement' },
+  hors_budget: { cadre: 'border-sky-200 bg-sky-50', icone: 'text-sky-600', titre: 'Dépense hors budget' },
 }
 
 export default function HomePage() {
@@ -59,6 +77,8 @@ export default function HomePage() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [budgets, setBudgets] = useState<any[]>([])
   const [error, setError] = useState('')
+  // null = alertes non accessibles (reservees a l'administrateur)
+  const [alertes, setAlertes] = useState<AlerteBudget[] | null>([])
   const [isLoading, setIsLoading] = useState(false)
 
   const fetchProtectedData = async (authToken: string) => {
@@ -67,6 +87,14 @@ export default function HomePage() {
         Authorization: `Bearer ${authToken}`,
       },
     })
+
+    if (response.status === 401) {
+      // KAN-12 : token expiré ou invalide (ex. backend redémarré) -> on
+      // l'oublie pour réafficher le formulaire de connexion.
+      localStorage.removeItem('ppe_token')
+      setToken('')
+      throw new Error('Votre session a expiré, reconnectez-vous.')
+    }
 
     if (!response.ok) {
       throw new Error('Impossible de récupérer le tableau de bord.')
@@ -98,6 +126,13 @@ export default function HomePage() {
 
     setTransactions(transactionsData.transactions)
     setBudgets(budgetsData.budgets)
+
+    // KAN-17 : alertes de depassement calculees en direct par le backend
+    // (403 pour un coproprietaire : le suivi est reserve a l'administrateur)
+    const suiviResponse = await fetch(`${API_URL}/api/budgets/${new Date().getFullYear()}/suivi`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+    setAlertes(suiviResponse.ok ? (await suiviResponse.json()).alertes : null)
   }
 
   const handleLogin = async () => {
@@ -138,11 +173,19 @@ export default function HomePage() {
     })
   }, [token])
 
-  const currency = new Intl.NumberFormat('fr-FR', {
+  // KAN-26 : une PPE suisse compte en francs suisses (et non en euros)
+  const currency = new Intl.NumberFormat('fr-CH', {
     style: 'currency',
-    currency: 'EUR',
+    currency: 'CHF',
     maximumFractionDigits: 0,
   })
+
+  const dateDuJour = new Intl.DateTimeFormat('fr-CH', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date())
 
   if (!token || !user) {
     return (
@@ -265,6 +308,9 @@ export default function HomePage() {
           </Link>
           <Link href="/modifications" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
             <History className="h-5 w-5" /> Journal
+            </Link>
+          <Link href="/budgets" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
+            <PiggyBank className="h-5 w-5" /> Budgets
           </Link>
         </nav>
 
@@ -297,73 +343,81 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-3 self-end sm:self-auto">
-              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm">
-                Mardi, 25 août 2026
+              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium capitalize text-slate-700 shadow-sm">
+                {dateDuJour}
               </div>
-              <button className="rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50">
+              <button
+                aria-label={alertes && alertes.length > 0 ? `${alertes.length} alerte(s) budgétaire(s)` : 'Aucune alerte'}
+                className="relative rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50"
+              >
                 <Bell className="h-5 w-5" />
+                {alertes && alertes.length > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold text-white">
+                    {alertes.length}
+                  </span>
+                )}
               </button>
             </div>
           </header>
 
           {summary ? (
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {/* KAN-26 : les 4 cartes affichent les vrais chiffres de l'exercice
+                  (avant : pourcentages ecrits en dur, ex. "8.4% vs mois dernier") */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Solde actuel</span>
-                  <span className="rounded-full bg-slate-100 p-1 text-slate-400">
-                    <span className="sr-only">Info</span>i
-                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Solde {summary.annee}</span>
                 </div>
-                <p className="mb-2 text-3xl font-bold text-slate-900">{currency.format(summary.totalBalance)}</p>
+                <p className={`mb-2 text-3xl font-bold ${summary.totalBalance < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                  {currency.format(summary.totalBalance)}
+                </p>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
-                    <ArrowUpRight className="h-3.5 w-3.5" /> 8.4% vs mois dernier
-                  </span>
+                  <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Revenus − dépenses de l’exercice</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Revenus 2026</span>
-                  <span className="rounded-full bg-slate-100 p-1 text-slate-400">
-                    <span className="sr-only">Info</span>i
-                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Revenus {summary.annee}</span>
+                  <ArrowUpRight className="h-4 w-4 text-emerald-500" />
                 </div>
                 <p className="mb-2 text-3xl font-bold text-slate-900">{currency.format(summary.totalIncome)}</p>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
-                    <ArrowUpRight className="h-3.5 w-3.5" /> 5.2% vs budget 2025
-                  </span>
+                  <span className="rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">Encaissés depuis le 1er janvier</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Dépenses 2026</span>
-                  <span className="rounded-full bg-slate-100 p-1 text-slate-400">
-                    <span className="sr-only">Info</span>i
-                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Dépenses {summary.annee}</span>
+                  <ArrowDownRight className="h-4 w-4 text-rose-500" />
                 </div>
                 <p className="mb-2 text-3xl font-bold text-slate-900">{currency.format(summary.totalExpenses)}</p>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 font-medium text-rose-700">
-                    <ArrowDownRight className="h-3.5 w-3.5" /> - 3.1% vs budget 2025
-                  </span>
+                  <span className="rounded bg-rose-100 px-2 py-0.5 font-medium text-rose-700">Payées depuis le 1er janvier</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Budget restant</span>
-                  <span className="rounded-full bg-slate-100 p-1 text-slate-400">
-                    <span className="sr-only">Info</span>i
-                  </span>
                 </div>
-                <p className="mb-2 text-3xl font-bold text-slate-900">{currency.format(summary.monthlyForecast)}</p>
+                <p className={`mb-2 text-3xl font-bold ${summary.budgetRestant < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                  {currency.format(summary.budgetRestant)}
+                </p>
+                <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${summary.budgetUsage > 100 ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${Math.min(summary.budgetUsage, 100)}%` }}
+                  />
+                </div>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
-                    42% utilisé
+                  <span
+                    className={`rounded px-2 py-0.5 font-medium ${
+                      summary.budgetUsage > 100 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}
+                  >
+                    {summary.budgetUsage}% de {currency.format(summary.budgetTotal)} utilisé
                   </span>
                 </div>
               </div>
@@ -457,40 +511,42 @@ export default function HomePage() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-slate-900">Alertes & actions</h2>
-                <button className="text-sm font-medium text-blue-600">Voir tout</button>
+                <h2 className="text-xl font-semibold text-slate-900">Alertes budgétaires</h2>
+                <Link href="/budgets" className="text-sm font-medium text-blue-600">
+                  Voir le budget
+                </Link>
               </div>
 
+              {/* KAN-17 : alertes reelles (avant : 3 alertes ecrites en dur) */}
               <div className="space-y-4">
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
-                    <div>
-                      <p className="font-semibold text-slate-800">Budget électricité</p>
-                      <p className="text-xs text-slate-600">Dépassement de 8% par rapport au budget estimé</p>
+                {alertes === null ? (
+                  <p className="text-sm text-slate-500">Le suivi du budget est réservé à l’administrateur.</p>
+                ) : alertes.length === 0 ? (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+                      <div>
+                        <p className="font-semibold text-slate-800">Tout est dans le budget</p>
+                        <p className="text-xs text-slate-600">Aucune catégorie ne dépasse ou ne risque de dépasser son budget.</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
-                    <div>
-                      <p className="font-semibold text-slate-800">Vote en attente</p>
-                      <p className="text-xs text-slate-600">Budget 2027 en attente de validation par 3 copropriétaires</p>
+                ) : (
+                  alertes.slice(0, 4).map((alerte) => (
+                    <div key={alerte.message} className={`rounded-xl border p-3 ${STYLE_ALERTE[alerte.niveau].cadre}`}>
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className={`mt-0.5 h-4 w-4 flex-shrink-0 ${STYLE_ALERTE[alerte.niveau].icone}`} />
+                        <div>
+                          <p className="font-semibold text-slate-800">{STYLE_ALERTE[alerte.niveau].titre}</p>
+                          <p className="text-xs text-slate-600">{alerte.message}</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-sky-600 text-[9px] font-bold text-white">i</span>
-                    <div>
-                      <p className="font-semibold text-slate-800">Devis à valider</p>
-                      <p className="text-xs text-slate-600">Rénovation du toit - 3 devis reçus à examiner</p>
-                    </div>
-                  </div>
-                </div>
+                  ))
+                )}
+                {alertes && alertes.length > 4 && (
+                  <p className="text-xs text-slate-500">+ {alertes.length - 4} autre(s) alerte(s) dans la page Budgets</p>
+                )}
               </div>
             </div>
           </section>

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import BanniereConnexion from '@/components/BanniereConnexion'
+import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
 import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Plus, Activity, Calculator, ArrowDownRight, Trash2, History } from 'lucide-react'
 
 type Saisie = {
@@ -29,13 +31,14 @@ export default function Saisie() {
 
   const [erreurs, setErreurs] = useState<string[]>([])
   const [message, setMessage] = useState('')
+  const [nonConnecte, setNonConnecte] = useState(false)
 
-  // KAN-35 : les routes des dépenses exigent d'être connecté (token posé par
-  // le tableau de bord), pour que l'historique sache qui a agi.
-  function enTetes() {
-    return {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('ppe_token') ?? ''}`,
+  // KAN-12 : toute erreur 401 affiche le bandeau de connexion
+  function gererErreur(erreur: unknown) {
+    if (erreur instanceof SessionExpireeError) {
+      setNonConnecte(true)
+    } else {
+      setErreurs([messageErreur(erreur)])
     }
   }
 
@@ -48,7 +51,7 @@ export default function Saisie() {
   }
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/saisies/options', { headers: enTetes() })
+    apiFetch('/api/saisies/options')
       .then(async res => {
         if (!res.ok) {
           setErreurs(await lireErreurs(res))
@@ -59,14 +62,16 @@ export default function Saisie() {
         setAppartements(data.appartements)
         setProjets(data.projets)
       })
+      .catch(gererErreur)
 
     chargerSaisies()
   }, [])
 
   function chargerSaisies() {
-    fetch('http://localhost:3001/api/saisies', { headers: enTetes() })
+    apiFetch('/api/saisies')
       .then(res => (res.ok ? res.json() : []))
       .then(data => setSaisies(data))
+      .catch(gererErreur)
   }
 
   async function supprimerSaisie(s: Saisie) {
@@ -74,7 +79,13 @@ export default function Saisie() {
     setErreurs([])
     setMessage('')
 
-    const reponse = await fetch(`http://localhost:3001/api/saisies/${s.id}`, { method: 'DELETE', headers: enTetes() })
+    let reponse: Response
+    try {
+      reponse = await apiFetch(`/api/saisies/${s.id}`, { method: 'DELETE' })
+    } catch (erreur) {
+      gererErreur(erreur)
+      return
+    }
     if (!reponse.ok) {
       setErreurs(await lireErreurs(reponse))
       return
@@ -106,11 +117,17 @@ export default function Saisie() {
       return
     }
 
-    const reponse = await fetch('http://localhost:3001/api/saisies', {
-      method: 'POST',
-      headers: enTetes(),
-      body: JSON.stringify({ montant: montant.replace(',', '.'), date: `${annee}-${mois}-${jour}`, categorie, appartement, projet, justificatif }),
-    })
+    let reponse: Response
+    try {
+      reponse = await apiFetch('/api/saisies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ montant: montant.replace(',', '.'), date: `${annee}-${mois}-${jour}`, categorie, appartement, projet, justificatif }),
+      })
+    } catch (erreur) {
+      gererErreur(erreur)
+      return
+    }
 
     if (!reponse.ok) {
       setErreurs(await lireErreurs(reponse))
@@ -208,6 +225,8 @@ export default function Saisie() {
               </button>
             </div>
           </header>
+
+          {nonConnecte && <BanniereConnexion />}
 
           <section className="mb-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

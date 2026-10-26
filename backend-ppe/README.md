@@ -89,6 +89,13 @@ quand c'est possible - voir `*.validation.test.js`).
 - `POST /api/auth/login` : connexion avec `{ email, password }`
 - `GET /api/auth/me` : retourne l'utilisateur connecté à partir du token Bearer
 
+**Sécurité (KAN-12)** : le token est signé (HMAC-SHA256) avec le secret
+`AUTH_SECRET` du fichier `.env` (32 caractères minimum, voir `.env.example`).
+Sans `AUTH_SECRET`, un secret temporaire est généré au démarrage : il faut
+alors se reconnecter après chaque redémarrage du backend. En production
+(`NODE_ENV=production`), le serveur refuse de démarrer sans `AUTH_SECRET`.
+Toutes les routes de données exigent un token valide (401 sinon).
+
 Comptes de démonstration créés par `npm run seed` (mots de passe visibles
 dans la sortie de la commande, également listés ici pour référence dev) :
 
@@ -99,12 +106,32 @@ dans la sortie de la commande, également listés ici pour référence dev) :
 
 ## Données financières
 
-- `GET /api/financial/summary` : résumé financier global
+- `GET /api/financial/summary?annee=2026` : résumé de l'**exercice** (année en
+  cours par défaut, `400` si l'année est invalide) — voir le détail ci-dessous
 - `GET /api/financial/accounts` : compte unique calculé depuis les transactions
 - `GET /api/financial/transactions` : dernières transactions (recettes + dépenses)
 - `GET /api/financial/budgets` : budgets annuels et taux d'usage réel
-- `POST /api/financial/budgets` : création/mise à jour d'une ligne de budget (admin)
+- `POST /api/financial/budgets` : création/mise à jour d'une ligne de budget
+  (admin, montant > 0 obligatoire)
 - `GET /api/depenses/historique` : dépenses agrégées par année/catégorie
+
+### Résumé de l'exercice (KAN-26)
+
+Calcul dans `src/modules/financial/financial.calcul.js` (testé sans base dans
+`financial.calcul.test.js`). Tous les montants portent sur **une seule année** :
+
+| Champ | Calcul |
+|---|---|
+| `totalIncome` / `totalExpenses` | recettes / dépenses de l'année |
+| `totalBalance` | `totalIncome - totalExpenses` (solde de l'exercice) |
+| `budgetTotal` | somme des lignes du budget voté pour l'année |
+| `budgetUtilise` | dépenses de l'année dans les catégories budgétées |
+| `budgetRestant` | `budgetTotal - budgetUtilise` (négatif = dépassement) |
+| `budgetUsage` | `budgetUtilise / budgetTotal` en %, 0 si aucun budget |
+
+Avant : toutes les années étaient additionnées et les dépenses comparées aux
+recettes (tableau de bord : solde -307 430, budget utilisé 5224 %).
+`GET /api/financial/accounts` garde le solde depuis le début (toutes années).
 
 ## Saisie des dépenses (KAN-19 / KAN-36)
 

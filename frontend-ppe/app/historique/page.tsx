@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, Fragment } from 'react'
+import BanniereConnexion from '@/components/BanniereConnexion'
+import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
 
 const categories = ['Entretien', 'Assurances', 'Nettoyage', 'Eau & Electricite', 'Administration', 'Reparations']
 const anneesPossibles = [2022, 2023, 2024, 2025]
@@ -15,11 +17,18 @@ export default function Historique() {
   const [depenses, setDepenses] = useState<Depense[]>([])
   const [anneeDebut, setAnneeDebut] = useState(2022)
   const [anneeFin, setAnneeFin] = useState(2025)
+  const [nonConnecte, setNonConnecte] = useState(false)
+  const [erreur, setErreur] = useState('')
 
   useEffect(() => {
-    fetch(`http://localhost:3001/api/depenses/historique?anneeDebut=${anneeDebut}&anneeFin=${anneeFin}`)
+    apiFetch(`/api/depenses/historique?anneeDebut=${anneeDebut}&anneeFin=${anneeFin}`)
       .then(res => res.json())
       .then(data => setDepenses(data))
+      .catch((e: unknown) => {
+        // KAN-12 : 401 -> bandeau de connexion, sinon message d'erreur
+        if (e instanceof SessionExpireeError) setNonConnecte(true)
+        else setErreur(messageErreur(e))
+      })
   }, [anneeDebut, anneeFin])
 
   const annees = anneesPossibles.filter(a => a >= anneeDebut && a <= anneeFin)
@@ -46,6 +55,9 @@ export default function Historique() {
     <div style={{ padding: '30px', fontFamily: 'Arial, sans-serif', backgroundColor: '#f5f7fa', minHeight: '100vh' }}>
       <h1 style={{ color: '#1e293b' }}>Historique des dépenses par catégorie</h1>
       <p style={{ color: '#64748b' }}>Comparez les exercices annuels et repérez les écarts</p>
+
+      {nonConnecte && <BanniereConnexion />}
+      {erreur && <p style={{ color: '#dc2626' }}>{erreur}</p>}
 
       {/* Filtres */}
       <div style={{ marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center' }}>

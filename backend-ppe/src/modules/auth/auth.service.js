@@ -1,6 +1,17 @@
 import bcrypt from 'bcryptjs'
 import { env } from '../../config/env.js'
 import { trouverUtilisateurParEmail } from './auth.repository.js'
+import { resoudreSecret, signerToken, verifierToken } from './auth.token.js'
+
+// Secret de signature des tokens, lu une seule fois au chargement.
+const { secret: AUTH_SECRET, genere: secretGenere } = resoudreSecret(process.env.AUTH_SECRET, process.env.NODE_ENV)
+
+if (secretGenere) {
+  console.warn(
+    'Attention : AUTH_SECRET absent du .env, un secret temporaire a ete genere. ' +
+      'Les sessions seront perdues au prochain redemarrage (voir .env.example).',
+  )
+}
 
 // Le schema stocke le role d'acces au format base (Appartenir.role), le
 // frontend attend un role applicatif simplifie. 'comite' (membre du comite
@@ -56,19 +67,13 @@ export function encoderToken(utilisateur) {
     exp: Date.now() + env.auth.tokenTtlMs,
   }
 
-  return Buffer.from(JSON.stringify(payload)).toString('base64url')
+  return signerToken(payload, AUTH_SECRET)
 }
 
+/**
+ * Renvoie le payload si le token est authentique (signature valide) et non
+ * expire, sinon null. Voir auth.token.js pour le detail.
+ */
 export function decoderToken(token) {
-  try {
-    const payload = JSON.parse(Buffer.from(token, 'base64url').toString('utf8'))
-
-    if (!payload.exp || payload.exp < Date.now()) {
-      return null
-    }
-
-    return payload
-  } catch (error) {
-    return null
-  }
+  return verifierToken(token, AUTH_SECRET)
 }
