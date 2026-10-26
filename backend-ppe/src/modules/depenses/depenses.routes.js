@@ -28,10 +28,11 @@ depensesRouter.get('/options', requireAuth, requireRole('admin', 'owner'), async
   }
 })
 
-// Liste les depenses deja saisies
+// Liste les depenses deja saisies avec filtres optionnels (KAN-34)
+// Exemple: /api/saisies?appartement=A1&projet=R%C3%A9novation%20du%20toit&dateDebut=2026-01-01&dateFin=2026-12-31
 depensesRouter.get('/', requireAuth, requireRole('admin', 'owner'), async (req, res, next) => {
   try {
-    res.json(await listerDepenses())
+    res.json(await listerDepenses(req.query))
   } catch (error) {
     next(error)
   }
