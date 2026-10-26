@@ -10,6 +10,7 @@ import { depensesHistoriqueRouter, financialRouter } from './src/modules/financi
 import { chargesRouter } from './src/modules/charges/charges.routes.js'
 import { historiqueRouter } from './src/modules/historique/historique.routes.js'
 import { budgetsRouter } from './src/modules/budgets/budgets.routes.js'
+import { rapportsRouter } from './src/modules/rapports/rapports.routes.js'
 
 // Arrete tout de suite le serveur si .env est incomplet (message clair)
 verifierEnv()
@@ -57,6 +58,7 @@ app.use('/api/depenses', depensesHistoriqueRouter)
 app.use('/api/charges', chargesRouter)
 app.use('/api/historique', historiqueRouter)
 app.use('/api/budgets', budgetsRouter)
+app.use('/api/rapports', rapportsRouter)
 
 // Gestionnaire d'erreurs centralise : toute erreur inattendue (SQL, etc.)
 // remonte ici via next(error) plutot que de faire planter le process.
