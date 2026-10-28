@@ -17,6 +17,25 @@ type Saisie = {
   justificatif: string
 }
 
+function Messages({ erreurs, message }: { erreurs: string[]; message: string }) {
+  return (
+    <>
+      {erreurs.length > 0 && (
+        <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {erreurs.map(err => (
+            <p key={err}>• {err}</p>
+          ))}
+        </div>
+      )}
+      {message && (
+        <div role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          {message}
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function Saisie() {
   const [categories, setCategories] = useState<string[]>([])
   const [appartements, setAppartements] = useState<string[]>([])
@@ -39,6 +58,10 @@ export default function Saisie() {
   const [erreurs, setErreurs] = useState<string[]>([])
   const [message, setMessage] = useState('')
   const [nonConnecte, setNonConnecte] = useState(false)
+  // Ou afficher le message : sous le formulaire (saisie) ou au-dessus du
+  // tableau (suppression). Avant, il etait toujours au-dessus du tableau,
+  // hors de l'ecran apres un clic sur "Enregistrer la depense".
+  const [zoneMessage, setZoneMessage] = useState<'formulaire' | 'liste'>('formulaire')
 
   // Cartes du haut : calculees sur les vraies depenses (avant : chiffres en dur)
   const anneeCourante = new Date().getFullYear()
@@ -102,6 +125,7 @@ export default function Saisie() {
 
   async function supprimerSaisie(s: Saisie) {
     if (!window.confirm(`Supprimer la dépense de ${formatChf(s.montant)} du ${formatDate(s.date)} ?`)) return
+    setZoneMessage('liste')
     setErreurs([])
     setMessage('')
 
@@ -123,6 +147,7 @@ export default function Saisie() {
 
   async function envoyerFormulaire(e: React.FormEvent) {
     e.preventDefault()
+    setZoneMessage('formulaire')
     setErreurs([])
     setMessage('')
 
@@ -313,6 +338,12 @@ export default function Saisie() {
               >
                 Enregistrer la dépense
               </button>
+
+              {zoneMessage === 'formulaire' && (
+                <div className="mt-4">
+                  <Messages erreurs={erreurs} message={message} />
+                </div>
+              )}
             </form>
 
             <div className="space-y-6">
@@ -393,19 +424,7 @@ export default function Saisie() {
               </div>
             </div>
 
-            {erreurs.length > 0 && (
-              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                {erreurs.map(err => (
-                  <p key={err}>• {err}</p>
-                ))}
-              </div>
-            )}
-
-            {message && (
-              <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-                {message}
-              </div>
-            )}
+            {zoneMessage === 'liste' && <Messages erreurs={erreurs} message={message} />}
 
             {saisies.length === 0 ? (
               <p className="text-slate-500">Aucune dépense saisie pour le moment.</p>
