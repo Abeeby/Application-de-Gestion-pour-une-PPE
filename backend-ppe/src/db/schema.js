@@ -100,9 +100,9 @@ export function messageSchema({ tablesManquantes, colonnesManquantes, erreur }) 
   if (tablesManquantes.length) lignes.push(`  Tables manquantes   : ${tablesManquantes.join(', ')}`)
   if (colonnesManquantes.length) lignes.push(`  Colonnes manquantes : ${colonnesManquantes.join(', ')}`)
   lignes.push(
-    '  Certaines pages vont repondre "Erreur 500". Pour corriger (efface les donnees de la base PPE) :',
-    '    mysql -u root -p < BD.sql',
-    '    npm run seed',
+    '  Certaines pages vont repondre "Erreur 500". Pour corriger (efface les donnees de la base PPE),',
+    '  arretez le serveur (Ctrl+C) puis lancez dans backend-ppe :',
+    '    npm run reset-db',
     '',
   )
   return lignes.join('\n')

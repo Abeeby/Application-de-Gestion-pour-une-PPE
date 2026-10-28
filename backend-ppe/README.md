@@ -9,12 +9,21 @@ données ne sont plus en mémoire : tout est persisté.
 npm install
 ```
 
+**Le plus simple** : copier `.env.example` en `.env` (étape 2), puis lancer
+`npm run reset-db`. Cette commande fait les étapes 1 et 3 d'un coup : elle
+recrée la base depuis `BD.sql` avec les identifiants de `.env`, puis lance le
+seed. Elle marche dans PowerShell et sans le client `mysql` dans le PATH.
+**Elle efface toutes les données de la base PPE** (développement seulement).
+
+Ou bien, étape par étape :
+
 1. Créer la base et toutes les tables en une seule fois :
    ```bash
    mysql -u root -p < BD.sql
    ```
    (adapter la commande à votre client MySQL/MariaDB - Workbench, DBeaver,
-   `mariadb`, etc. fonctionnent aussi bien). **Attention** : ce script fait
+   `mariadb`, etc. fonctionnent aussi bien ; dans PowerShell, le `<` est
+   refusé : utiliser `cmd /c "mysql -u root -p < BD.sql"` ou `npm run reset-db`). **Attention** : ce script fait
    `DROP DATABASE IF EXISTS PPE` avant de la recréer - à ne lancer que sur un
    environnement de développement, jamais contre une base contenant déjà des
    données à conserver.

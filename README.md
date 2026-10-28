@@ -26,11 +26,12 @@ Il faut **3 choses** qui tournent : la base de données, le backend et le fronte
 
 ```bash
 cd backend-ppe
-mysql -u root -p < BD.sql      # crée la base PPE (efface l'ancienne !)
 cp .env.example .env           # puis mettre vos identifiants MySQL
 npm install
-npm run seed                   # données de démo + comptes de connexion
+npm run reset-db               # crée la base PPE depuis BD.sql + données de démo (efface l'ancienne !)
 ```
+
+`npm run reset-db` fait en une commande ce que faisaient `mysql -u root -p < BD.sql` puis `npm run seed`. Il marche aussi dans PowerShell (qui refuse le `<`) et sans que le client `mysql` soit dans le PATH, car il utilise les identifiants de `.env`. Les deux anciennes commandes fonctionnent toujours.
 
 MySQL/MariaDB doit être démarré et la base configurée dans `backend-ppe/.env`. Pour une première installation, suivre le [README du backend](backend-ppe/README.md#mise-en-route). Si la base contient déjà des données à conserver, ne pas réimporter `BD.sql` ni relancer le seed, qui réinitialisent les données.
 
@@ -80,13 +81,12 @@ Au démarrage, le backend compare la base à `BD.sql` et affiche dans le termina
   Colonnes manquantes : Budgets_Annuels.date_approbation
 ```
 
-Pour corriger (efface les données de la base PPE et remet les données de démo) :
+Pour corriger (efface les données de la base PPE et remet les données de démo), arrêter le backend avec `Ctrl+C`, puis :
 
 ```bash
 cd backend-ppe
 git pull
-mysql -u root -p < BD.sql
-npm run seed
+npm run reset-db
 npm start
 ```
 
@@ -137,7 +137,8 @@ backend-ppe/                 API Express (port 3001) branchée sur MySQL/MariaDB
   src/config/                variables d'environnement (.env), constantes
   src/db/                    pool MySQL + script de seed (données de démo),
                              schema.js (base à jour par rapport à BD.sql ?),
-                             erreurs.js (erreurs SQL traduites en messages clairs)
+                             erreurs.js (erreurs SQL traduites en messages clairs),
+                             reset.js (npm run reset-db : BD.sql + seed)
   src/middleware/auth.js     requireAuth / requireRole
   src/modules/<module>/      un dossier par fonctionnalité :
                              *.routes.js (Express), *.repository.js (SQL),
