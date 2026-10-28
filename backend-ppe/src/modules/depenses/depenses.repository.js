@@ -1,7 +1,7 @@
 import { pool } from '../../db/pool.js'
 import { ID_PPE_DEFAUT } from '../../config/constants.js'
 import { resolveCategorieId, resolveLotId, resolveProjetId } from '../reference/reference.repository.js'
-import { versMontant } from '../../validation/communes.js'
+import { estDateValide, versMontant } from '../../validation/communes.js'
 
 const SELECT_DEPENSE = `
   SELECT t.id, t.montant, t.date_transaction, c.libelle AS categorie, l.reference AS appartement,
@@ -24,6 +24,32 @@ function versDepensePublique(ligne) {
     idProjet: ligne.id_projet ?? null,
     justificatif: ligne.description ?? '',
   }
+}
+
+/**
+ * Verifie les filtres de la liste des depenses (KAN-34).
+ * MySQL 8 refuse de comparer une date a un texte comme '2026-13-45' (erreur
+ * 500) alors que MariaDB l'acceptait sans rien dire : on refuse avant (400).
+ * @returns {string[]} erreurs
+ */
+export function validerFiltresDepenses(filtres = {}) {
+  const erreurs = []
+  for (const [cle, libelle] of [['dateDebut', 'de début'], ['dateFin', 'de fin']]) {
+    const valeur = filtres[cle]
+    if (valeur === undefined || valeur === '') continue
+    if (typeof valeur !== 'string' || !estDateValide(valeur.trim())) {
+      erreurs.push(`La date ${libelle} doit être une date valide au format AAAA-MM-JJ`)
+    }
+  }
+  for (const cle of ['projet', 'appartement']) {
+    if (filtres[cle] !== undefined && typeof filtres[cle] !== 'string') {
+      erreurs.push(`Le filtre « ${cle} » ne peut avoir qu’une seule valeur`)
+    }
+  }
+  if (!erreurs.length && filtres.dateDebut && filtres.dateFin && filtres.dateDebut > filtres.dateFin) {
+    erreurs.push('La date de début doit être avant la date de fin')
+  }
+  return erreurs
 }
 
 export function construireFiltresDepenses(filtres = {}) {

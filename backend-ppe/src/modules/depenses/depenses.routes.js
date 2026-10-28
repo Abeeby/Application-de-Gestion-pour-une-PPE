@@ -4,7 +4,7 @@ import { requireAuth, requireRole } from '../../middleware/auth.js'
 import { photoDepense } from '../historique/historique.changements.js'
 import { enregistrerHistorique } from '../historique/historique.repository.js'
 import { getCategoriesParType, getLotsReferences, getProjetsNoms } from '../reference/reference.repository.js'
-import { ajouterDepense, getDepenseById, listerDepenses, supprimerDepense } from './depenses.repository.js'
+import { ajouterDepense, getDepenseById, listerDepenses, supprimerDepense, validerFiltresDepenses } from './depenses.repository.js'
 import { validerDepense } from './depenses.validation.js'
 
 export const depensesRouter = Router()
@@ -38,6 +38,8 @@ depensesRouter.get('/options', requireAuth, requireRole('admin', 'owner'), async
 // Exemple: /api/saisies?appartement=A1&projet=R%C3%A9novation%20du%20toit&dateDebut=2026-01-01&dateFin=2026-12-31
 depensesRouter.get('/', requireAuth, requireRole('admin', 'owner'), async (req, res, next) => {
   try {
+    const erreurs = validerFiltresDepenses(req.query)
+    if (erreurs.length > 0) return res.status(400).json({ erreurs })
     res.json(await listerDepenses(req.query))
   } catch (error) {
     next(error)

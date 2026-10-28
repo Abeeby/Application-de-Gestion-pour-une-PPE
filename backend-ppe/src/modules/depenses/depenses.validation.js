@@ -38,6 +38,17 @@ export function validerDepenseAvecListes(depense = {}, { categories, appartement
     erreurs.push('Le projet est invalide')
   }
 
+  // Le justificatif est un numero de facture : du texte court, ou rien.
+  // Avant, une liste [] faisait planter la requete SQL (erreur 500).
+  const justificatif = depense.justificatif
+  if (justificatif !== undefined && justificatif !== null && justificatif !== '') {
+    if (typeof justificatif !== 'string') {
+      erreurs.push('Le justificatif doit etre un texte (ex. FAC-2026-001)')
+    } else if (justificatif.length > 255) {
+      erreurs.push('Le justificatif ne peut pas depasser 255 caracteres')
+    }
+  }
+
   return erreurs
 }
 

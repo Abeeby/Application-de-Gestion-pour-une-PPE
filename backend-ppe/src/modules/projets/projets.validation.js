@@ -84,9 +84,15 @@ export function validerProjet(projet = {}, { isUpdate = false } = {}) {
 
   if (projet.depense !== undefined && projet.depense !== null && projet.depense !== '') {
     const dep = Number(projet.depense)
-    if (Number.isNaN(dep) || dep < 0) {
-      erreurs.push('Le montant dépensé doit être un nombre positif ou nul')
+    if (Number.isNaN(dep) || dep < 0 || (dep > 0 && !estMontantValide(dep))) {
+      erreurs.push('Le montant dépensé doit être un nombre positif ou nul (99’999’999.99 au maximum)')
     }
+  }
+
+  if (projet.description !== undefined && projet.description !== null && typeof projet.description !== 'string') {
+    erreurs.push('La description doit être un texte')
+  } else if (typeof projet.description === 'string' && projet.description.length > 5000) {
+    erreurs.push('La description ne peut pas dépasser 5000 caractères')
   }
 
   if (projet.progression !== undefined && projet.progression !== null && projet.progression !== '') {
@@ -127,6 +133,9 @@ export function validerProjet(projet = {}, { isUpdate = false } = {}) {
       erreurs.push('Le responsable du projet est obligatoire')
     } else if (projet.responsable.trim().length < 2) {
       erreurs.push('Le responsable doit comporter au moins 2 caractères')
+    } else if (projet.responsable.trim().length > 120) {
+      // Meme limite que la colonne Projets.responsable VARCHAR(120)
+      erreurs.push('Le responsable ne peut pas dépasser 120 caractères')
     }
   }
 

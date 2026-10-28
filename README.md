@@ -68,6 +68,34 @@ Les pages sont ensuite accessibles à ces adresses :
 
 ---
 
+## Dépannage : « Erreur 500 »
+
+La cause la plus fréquente est une **base créée avec une ancienne version de `BD.sql`**. Quand une fonctionnalité ajoute une table ou une colonne (ex. le journal KAN-35, le budget KAN-15), les bases déjà créées ne sont pas mises à jour toutes seules.
+
+Au démarrage, le backend compare la base à `BD.sql` et affiche dans le terminal ce qui manque :
+
+```
+!!! La base de donnees n est pas a jour par rapport a BD.sql !!!
+  Tables manquantes   : Historique
+  Colonnes manquantes : Budgets_Annuels.date_approbation
+```
+
+Pour corriger (efface les données de la base PPE et remet les données de démo) :
+
+```bash
+cd backend-ppe
+git pull
+mysql -u root -p < BD.sql
+npm run seed
+npm start
+```
+
+`http://localhost:3001/api/health` indique aussi si la base est à jour (`schema.aJour`). Pour voir le détail technique d'une erreur 500 dans la réponse, ajouter `NODE_ENV=development` dans `backend-ppe/.env`. Le détail s'affiche toujours dans le terminal du backend.
+
+L'application est testée sur **MySQL 8** et **MariaDB** (mode strict `ONLY_FULL_GROUP_BY` compris).
+
+---
+
 ## Lancer les tests et le lint
 
 Les tests utilisent le testeur intégré de Node. Installer les dépendances du backend avant de les lancer.
@@ -97,6 +125,7 @@ npm test          # calculs du tableau de bord interactif (KAN-28)
 ## Interface commune
 - `frontend-ppe/components/MenuLateral.tsx` : un seul menu pour toutes les pages. La page active est surlignée, les liens réservés à l'administrateur (Charges, Rapports) sont masqués pour un copropriétaire, et « Déconnexion » efface vraiment la session.
 - `frontend-ppe/lib/format.ts` : un seul format pour les montants (`CHF 1’500.00`) et les dates (`28.10.2026`).
+- `frontend-ppe/components/BandeauConsultation.tsx` : un copropriétaire voit un bandeau « Mode consultation » à la place des formulaires de saisie (le rôle est lu par `lib/useRole.ts`).
 - Tous les chiffres affichés viennent de l'API (plus aucune valeur écrite en dur dans les pages).
 
 ## Structure des fichiers
@@ -106,7 +135,9 @@ backend-ppe/                 API Express (port 3001) branchée sur MySQL/MariaDB
   index.js                   assemblage de l'app (middlewares, routes, erreurs)
   BD.sql                     création de la base et de toutes les tables
   src/config/                variables d'environnement (.env), constantes
-  src/db/                    pool MySQL + script de seed (données de démo)
+  src/db/                    pool MySQL + script de seed (données de démo),
+                             schema.js (base à jour par rapport à BD.sql ?),
+                             erreurs.js (erreurs SQL traduites en messages clairs)
   src/middleware/auth.js     requireAuth / requireRole
   src/modules/<module>/      un dossier par fonctionnalité :
                              *.routes.js (Express), *.repository.js (SQL),

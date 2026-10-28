@@ -16,6 +16,7 @@ import {
 } from './budgets.calcul.js'
 import { changerStatut, creerBrouillon, listerBudgets, mettreAJourBudget, trouverBudget } from './budgets.repository.js'
 import { calculerSuivi } from './suivi.calcul.js'
+import { estMontantValide } from '../../validation/communes.js'
 
 // --- KAN-15 : creation et approbation du budget annuel ---
 //
@@ -144,7 +145,7 @@ budgetsRouter.put('/:annee', requireRole('admin'), avecAnnee, async (req, res, n
     if (lignes !== undefined) {
       erreurs.push(...validerLignes(lignes, await getCategoriesParType('depense')))
     }
-    if (enveloppe !== undefined && (typeof enveloppe !== 'number' || !Number.isFinite(enveloppe) || enveloppe <= 0)) {
+    if (enveloppe !== undefined && (typeof enveloppe !== 'number' || !estMontantValide(enveloppe))) {
       erreurs.push('L’enveloppe doit être un nombre supérieur à 0')
     }
     if (lignes === undefined && enveloppe === undefined) {
