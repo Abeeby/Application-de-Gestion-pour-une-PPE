@@ -1,6 +1,7 @@
 import { pool } from '../../db/pool.js'
 import { ID_PPE_DEFAUT } from '../../config/constants.js'
 import { resolveCategorieId, resolveLotId } from '../reference/reference.repository.js'
+import { versMontant } from '../../validation/communes.js'
 
 const SELECT_REVENU = `
   SELECT t.id, t.montant, t.date_transaction, c.libelle AS categorie, l.reference AS appartement
@@ -25,18 +26,19 @@ export async function listerRevenus() {
   return lignes.map(versRevenuPublic)
 }
 
-export async function ajouterRevenu(revenu) {
+// `db` : connexion d'une transaction (import), le pool sinon
+export async function ajouterRevenu(revenu, db = pool) {
   const [idCategorie, idLot] = await Promise.all([
     resolveCategorieId(revenu.categorie, 'recette'),
     resolveLotId(revenu.appartement),
   ])
 
-  const [resultat] = await pool.query(
+  const [resultat] = await db.query(
     `INSERT INTO Transactions (id_ppe, id_categorie, id_lot, montant, date_transaction, description, type)
      VALUES (?, ?, ?, ?, ?, ?, 'recette')`,
-    [ID_PPE_DEFAUT, idCategorie, idLot, Number(revenu.montant), revenu.date, `Revenu ${revenu.categorie}`],
+    [ID_PPE_DEFAUT, idCategorie, idLot, versMontant(revenu.montant), revenu.date, `Revenu ${revenu.categorie}`],
   )
 
-  const [lignes] = await pool.query(`${SELECT_REVENU} AND t.id = ?`, [ID_PPE_DEFAUT, resultat.insertId])
+  const [lignes] = await db.query(`${SELECT_REVENU} AND t.id = ?`, [ID_PPE_DEFAUT, resultat.insertId])
   return versRevenuPublic(lignes[0])
 }

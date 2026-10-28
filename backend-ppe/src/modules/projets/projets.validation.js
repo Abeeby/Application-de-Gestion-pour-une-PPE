@@ -1,3 +1,5 @@
+import { estDateValide, estMontantValide } from '../../validation/communes.js'
+
 // Regles metier et RBAC du module projets (KAN-8 / KAN-37 / KAN-38).
 // Code inchange par rapport a l'ancien projets.js "en memoire" : la
 // validation ne depend pas du stockage.
@@ -45,13 +47,11 @@ export function getDroitsUtilisateur(role) {
 
 export const statutsProjet = ['Planifié', 'En cours', 'Terminé', 'En attente', 'Suspendu']
 
-export function estDateValide(dateStr) {
-  if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return false
-  }
-  const d = new Date(dateStr)
-  return !Number.isNaN(d.getTime())
-}
+// Date reelle du calendrier : new Date('2026-02-31') etait acceptee (elle
+// devient le 3 mars) puis MySQL renvoyait une erreur 500.
+export { estDateValide }
+
+export const statutsEtape = ['Terminé', 'En cours', 'En attente']
 
 /**
  * Validation metier d'un projet specifique (KAN-38)
@@ -67,8 +67,9 @@ export function validerProjet(projet = {}, { isUpdate = false } = {}) {
       erreurs.push('Le titre du projet est obligatoire')
     } else if (projet.titre.trim().length < 3) {
       erreurs.push('Le titre du projet doit comporter au moins 3 caractères')
-    } else if (projet.titre.trim().length > 100) {
-      erreurs.push('Le titre du projet ne peut pas dépasser 100 caractères')
+    } else if (projet.titre.trim().length > 80) {
+      // Meme limite que la colonne Projets.nom VARCHAR(80)
+      erreurs.push('Le titre du projet ne peut pas dépasser 80 caractères')
     }
   }
 
@@ -76,7 +77,7 @@ export function validerProjet(projet = {}, { isUpdate = false } = {}) {
     const budget = Number(projet.budgetTotal)
     if (projet.budgetTotal === undefined || projet.budgetTotal === null || projet.budgetTotal === '') {
       erreurs.push('Le budget total est obligatoire')
-    } else if (Number.isNaN(budget) || budget <= 0) {
+    } else if (Number.isNaN(budget) || budget <= 0 || !estMontantValide(budget)) {
       erreurs.push('Le budget total doit être un nombre supérieur à 0')
     }
   }
@@ -126,6 +127,26 @@ export function validerProjet(projet = {}, { isUpdate = false } = {}) {
       erreurs.push('Le responsable du projet est obligatoire')
     } else if (projet.responsable.trim().length < 2) {
       erreurs.push('Le responsable doit comporter au moins 2 caractères')
+    }
+  }
+
+  // Etapes du projet : chaque etape doit pouvoir etre enregistree en base
+  if (projet.etapes !== undefined) {
+    if (!Array.isArray(projet.etapes)) {
+      erreurs.push('Les étapes doivent être une liste')
+    } else {
+      projet.etapes.forEach((etape, index) => {
+        const numero = index + 1
+        if (typeof etape?.titre !== 'string' || !etape.titre.trim() || etape.titre.length > 150) {
+          erreurs.push(`Étape ${numero} : le titre est obligatoire (150 caractères maximum)`)
+        }
+        if (!estDateValide(etape?.date)) {
+          erreurs.push(`Étape ${numero} : la date doit être au format AAAA-MM-JJ`)
+        }
+        if (etape?.statut !== undefined && !statutsEtape.includes(etape.statut)) {
+          erreurs.push(`Étape ${numero} : le statut doit être ${statutsEtape.join(', ')}`)
+        }
+      })
     }
   }
 

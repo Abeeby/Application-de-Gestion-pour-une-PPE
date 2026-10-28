@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import BanniereConnexion from '@/components/BanniereConnexion'
 import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
-import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Plus, Activity, Calculator, ArrowDownRight, Trash2, History } from 'lucide-react'
+import { FileText, Wallet, ArrowDownRight, Trash2 } from 'lucide-react'
+import MenuLateral from '@/components/MenuLateral'
+import { dateDuJour, formatChf, formatDate } from '@/lib/format'
 
 type Saisie = {
   id: number
@@ -38,6 +39,12 @@ export default function Saisie() {
   const [erreurs, setErreurs] = useState<string[]>([])
   const [message, setMessage] = useState('')
   const [nonConnecte, setNonConnecte] = useState(false)
+
+  // Cartes du haut : calculees sur les vraies depenses (avant : chiffres en dur)
+  const anneeCourante = new Date().getFullYear()
+  const depensesAnnee = saisies.filter(s => s.date?.startsWith(String(anneeCourante)))
+  const totalAnnee = depensesAnnee.reduce((somme, s) => somme + Number(s.montant), 0)
+  const derniere = [...saisies].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)[0]
 
   // KAN-12 : toute erreur 401 affiche le bandeau de connexion
   function gererErreur(erreur: unknown) {
@@ -75,6 +82,7 @@ export default function Saisie() {
   // (y compris au premier affichage)
   useEffect(() => {
     chargerSaisies(filtres)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rechargement uniquement quand les filtres changent
   }, [filtres])
 
   function chargerSaisies(filtresActifs = filtres) {
@@ -93,7 +101,7 @@ export default function Saisie() {
   }
 
   async function supprimerSaisie(s: Saisie) {
-    if (!window.confirm(`Supprimer la dépense de ${s.montant} CHF du ${s.date} ?`)) return
+    if (!window.confirm(`Supprimer la dépense de ${formatChf(s.montant)} du ${formatDate(s.date)} ?`)) return
     setErreurs([])
     setMessage('')
 
@@ -164,67 +172,7 @@ export default function Saisie() {
 
   return (
     <div className="flex min-h-screen bg-[#f5f7fb] font-sans text-slate-900">
-      <aside className="hidden w-64 flex-shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-        <div className="flex items-center gap-3 p-6">
-          <div className="rounded-lg bg-blue-600 p-2 text-sm font-bold text-white">PPE</div>
-          <div>
-            <h2 className="text-sm font-bold leading-tight text-slate-900">PPE Gestion</h2>
-            <p className="text-xs text-slate-500">Gestion de copropriété</p>
-          </div>
-        </div>
-
-        <div className="px-4 pb-3">
-          <button className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-medium text-slate-700 shadow-sm">
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> Les Terrasses</span>
-            <span className="text-slate-400">▼</span>
-          </button>
-        </div>
-
-        <div className="px-4 pb-3">
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5 text-sm font-semibold text-orange-700 shadow-sm transition hover:bg-orange-100">
-            <span className="text-lg leading-none">＋</span> Nouvelle PPE
-          </button>
-        </div>
-
-        <nav className="flex-1 space-y-1 px-4">
-          <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <LayoutDashboard className="h-5 w-5" /> Tableau de bord
-          </Link>
-          <Link href="/electricite" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Zap className="h-5 w-5 fill-current" /> Électricité
-          </Link>
-          <Link href="/statistiques" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Activity className="h-5 w-5" /> Statistiques
-          </Link>
-          <Link href="/saisie" className="flex items-center gap-3 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-medium text-white shadow-sm transition">
-            <FileText className="h-5 w-5" /> Dépenses
-          </Link>
-          <Link href="/revenus" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Wallet className="h-5 w-5" /> Revenus
-          </Link>
-          <Link href="/projets" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Folder className="h-5 w-5" /> Projets
-          </Link>
-          <Link href="/historique" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <BarChart2 className="h-5 w-5" /> Historique
-          </Link>
-          <Link href="/charges" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Calculator className="h-5 w-5" /> Charges
-          </Link>
-          <Link href="/modifications" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <History className="h-5 w-5" /> Journal
-          </Link>
-        </nav>
-
-        <div className="space-y-1 border-t border-slate-200 p-4">
-          <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Settings className="h-5 w-5" /> Paramètres
-          </a>
-          <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50">
-            <LogOut className="h-5 w-5" /> Déconnexion
-          </Link>
-        </div>
-      </aside>
+      <MenuLateral />
 
       <main className="flex-1 overflow-auto p-8">
         <div className="mx-auto max-w-7xl">
@@ -235,12 +183,9 @@ export default function Saisie() {
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm">
-                Mardi, 25 août 2026
+              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium capitalize text-slate-700 shadow-sm">
+                {dateDuJour()}
               </div>
-              <button className="rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50">
-                <Bell className="h-5 w-5" />
-              </button>
             </div>
           </header>
 
@@ -249,23 +194,23 @@ export default function Saisie() {
           <section className="mb-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Dépenses du mois</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Dépenses {anneeCourante}</span>
                 <ArrowDownRight className="h-4 w-4 text-rose-500" />
               </div>
-              <p className="mb-2 text-3xl font-bold text-slate-900">CHF 24'680</p>
+              <p className="mb-2 text-3xl font-bold text-slate-900">{formatChf(totalAnnee, false)}</p>
               <div className="flex items-center gap-2 text-xs">
-                <span className="rounded bg-rose-100 px-2 py-0.5 font-medium text-rose-700">+8,4% vs mois dernier</span>
+                <span className="rounded bg-rose-100 px-2 py-0.5 font-medium text-rose-700">{depensesAnnee.length} dépense(s) cette année</span>
               </div>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Budget restant</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Dernière dépense</span>
                 <Wallet className="h-4 w-4 text-blue-500" />
               </div>
-              <p className="mb-2 text-3xl font-bold text-slate-900">CHF 15'330</p>
+              <p className="mb-2 text-3xl font-bold text-slate-900">{derniere ? formatChf(derniere.montant, false) : '—'}</p>
               <div className="flex items-center gap-2 text-xs">
-                <span className="rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">Dans la cible</span>
+                <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-700">{derniere ? `${formatDate(derniere.date)} · ${derniere.categorie}` : 'Aucune dépense'}</span>
               </div>
             </div>
 
@@ -288,9 +233,6 @@ export default function Saisie() {
                   <h2 className="text-xl font-semibold text-slate-900">Saisie manuelle</h2>
                   <p className="mt-1 text-sm text-slate-500">Renseignez les informations pour ajouter une dépense.</p>
                 </div>
-                <button type="button" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
-                  <Upload className="h-4 w-4" /> Import CSV
-                </button>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -377,19 +319,12 @@ export default function Saisie() {
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-lg font-semibold text-slate-900">Résumé</h2>
                 <ul className="mt-4 space-y-3 text-sm text-slate-600">
-                  <li className="flex items-center justify-between border-b border-slate-100 pb-2"><span>Dernière saisie</span><span className="font-medium text-slate-900">12 août 2026</span></li>
+                  <li className="flex items-center justify-between border-b border-slate-100 pb-2"><span>Dernière saisie</span><span className="font-medium text-slate-900">{derniere ? formatDate(derniere.date) : '—'}</span></li>
                   <li className="flex items-center justify-between border-b border-slate-100 pb-2"><span>Appartements</span><span className="font-medium text-slate-900">{appartements.length}</span></li>
                   <li className="flex items-center justify-between"><span>Catégories</span><span className="font-medium text-slate-900">{categories.length}</span></li>
                 </ul>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-900">Import</h2>
-                <p className="mt-2 text-sm text-slate-500">Chargez un CSV ou Excel pour ajouter plusieurs dépenses.</p>
-                <button className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
-                  <Upload className="h-4 w-4" /> Sélectionner un fichier
-                </button>
-              </div>
             </div>
           </section>
 
@@ -491,12 +426,12 @@ export default function Saisie() {
                   <tbody>
                     {saisies.map(s => (
                       <tr key={s.id} className="border-b border-slate-100">
-                        <td className="px-3 py-3 text-slate-600">{s.date}</td>
+                        <td className="px-3 py-3 text-slate-600">{formatDate(s.date)}</td>
                         <td className="px-3 py-3 text-slate-700">{s.categorie}</td>
                         <td className="px-3 py-3 text-slate-700">{s.appartement}</td>
                         <td className="px-3 py-3 text-slate-700">{s.projet}</td>
                         <td className="px-3 py-3 text-slate-700">{s.justificatif || '-'}</td>
-                        <td className="px-3 py-3 text-right font-semibold text-slate-900">{s.montant} CHF</td>
+                        <td className="px-3 py-3 text-right font-semibold tabular-nums text-slate-900">{formatChf(s.montant)}</td>
                         <td className="px-3 py-3 text-right">
                           <button
                             type="button"

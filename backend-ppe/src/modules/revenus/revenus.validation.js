@@ -3,10 +3,14 @@
 // DB (validerRevenuAvecListes), et un point d'entree async pour les routes.
 
 import { getCategoriesParType, getLotsReferences } from '../reference/reference.repository.js'
+import { estDateValide, estMontantValide } from '../../validation/communes.js'
 
 export function normaliserDateImport(date) {
+  // Cellule Excel de type date : on lit la date LOCALE (toISOString() donne
+  // l'heure UTC et pouvait decaler d'un jour)
   if (date instanceof Date && !Number.isNaN(date.getTime())) {
-    return date.toISOString().slice(0, 10)
+    const deuxChiffres = (n) => String(n).padStart(2, '0')
+    return `${date.getFullYear()}-${deuxChiffres(date.getMonth() + 1)}-${deuxChiffres(date.getDate())}`
   }
 
   const valeur = String(date ?? '').trim()
@@ -28,13 +32,11 @@ export function normaliserDateImport(date) {
  */
 export function validerRevenuAvecListes(revenu = {}, { categories, appartements }) {
   const erreurs = []
-  const montant = Number(revenu.montant)
-
-  if (!Number.isFinite(montant) || montant <= 0) {
+  if (!estMontantValide(revenu.montant)) {
     erreurs.push('Le montant doit etre un nombre superieur a 0')
   }
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(revenu.date ?? ''))) {
+  if (!estDateValide(String(revenu.date ?? ''))) {
     erreurs.push('La date est obligatoire et doit etre au format AAAA-MM-JJ')
   }
 

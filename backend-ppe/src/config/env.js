@@ -15,7 +15,9 @@ const VARIABLES_OBLIGATOIRES = ['DB_USER', 'DB_DATABASE']
 
 export const env = {
   port: Number(process.env.PORT ?? 3001),
-  isDev: process.env.NODE_ENV !== 'production',
+  // Detail technique des erreurs (pile, SQL) renvoye au client seulement si
+  // NODE_ENV=development est demande explicitement (avant : par defaut).
+  isDev: process.env.NODE_ENV === 'development',
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT ?? 3306),

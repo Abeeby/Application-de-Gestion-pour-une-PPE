@@ -12,8 +12,8 @@ import { pool } from './pool.js'
 
 verifierEnv()
 
-const NOM_PPE = 'PPE Résidence Exemple'
-const ADRESSE_PPE = 'Rue de la Copropriété 1, 1400 Yverdon-les-Bains'
+const NOM_PPE = 'PPE Les Terrasses'
+const ADRESSE_PPE = 'Chemin des Terrasses 12, 1004 Lausanne'
 
 const LOTS = [
   { reference: 'A1', surface: 70, nbr_pieces: 3.5, quote_part: 16.67 },

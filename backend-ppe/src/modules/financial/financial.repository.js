@@ -1,13 +1,13 @@
 import { pool } from '../../db/pool.js'
 import { ID_PPE_DEFAUT } from '../../config/constants.js'
-import { calculerResume } from './financial.calcul.js'
+import { calculerResume, construireEvolutionMensuelle } from './financial.calcul.js'
 
 /**
  * KAN-26 : resume financier de l'exercice `annee` (annee en cours par defaut).
  * Les totaux ne portent que sur l'annee demandee, et le taux d'utilisation du
  * budget compare les depenses au budget vote (voir financial.calcul.js).
  */
-export async function getSummary(annee = new Date().getFullYear()) {
+export async function getSummary(annee = new Date().getFullYear(), { inclureBrouillon = true } = {}) {
   const [[totaux]] = await pool.query(
     `SELECT
        COALESCE(SUM(CASE WHEN type = 'recette' THEN montant ELSE 0 END), 0) AS total_recettes,
@@ -17,7 +17,7 @@ export async function getSummary(annee = new Date().getFullYear()) {
     [ID_PPE_DEFAUT, annee],
   )
 
-  const lignesBudget = await getBudgets(annee)
+  const lignesBudget = await getBudgets(annee, { inclureBrouillon })
 
   return calculerResume({
     annee,
@@ -33,6 +33,22 @@ export async function getSummary(annee = new Date().getFullYear()) {
  * resume qui ne porte que sur l'exercice en cours. A remplacer par une vraie
  * table si le suivi multi-comptes devient necessaire.
  */
+/**
+ * Totaux des recettes et depenses de chaque mois de l'exercice `annee`
+ * (graphique "Revenus & depenses" du tableau de bord).
+ */
+export async function getEvolutionMensuelle(annee = new Date().getFullYear()) {
+  const [lignes] = await pool.query(
+    `SELECT MONTH(date_transaction) AS mois, type, SUM(montant) AS total
+     FROM Transactions
+     WHERE id_ppe = ? AND YEAR(date_transaction) = ?
+     GROUP BY MONTH(date_transaction), type`,
+    [ID_PPE_DEFAUT, annee],
+  )
+
+  return construireEvolutionMensuelle(lignes)
+}
+
 export async function getAccounts() {
   const [[totaux]] = await pool.query(
     `SELECT
@@ -100,7 +116,10 @@ async function trouverOuCreerCategorie(libelle) {
   return resultat.insertId
 }
 
-export async function getBudgets(annee = new Date().getFullYear()) {
+// inclureBrouillon = false pour un coproprietaire : un budget en brouillon
+// est un travail interne de l'administrateur (meme regle que KAN-15,
+// GET /api/budgets/:annee renvoie 404 au coproprietaire dans ce cas).
+export async function getBudgets(annee = new Date().getFullYear(), { inclureBrouillon = true } = {}) {
   const [lignes] = await pool.query(
     `SELECT lb.id, c.libelle AS category, lb.montant AS planned,
        COALESCE((
@@ -111,9 +130,9 @@ export async function getBudgets(annee = new Date().getFullYear()) {
      FROM Ligne_Budgets lb
      JOIN Budgets_Annuels ba ON ba.id = lb.id_budget_annuel
      JOIN Categories c ON c.id = lb.id_categorie
-     WHERE ba.id_ppe = ? AND ba.annee = ?
+     WHERE ba.id_ppe = ? AND ba.annee = ? AND (? OR ba.statut <> 'brouillon')
      ORDER BY c.libelle ASC`,
-    [ID_PPE_DEFAUT, ID_PPE_DEFAUT, annee],
+    [ID_PPE_DEFAUT, ID_PPE_DEFAUT, annee, inclureBrouillon],
   )
 
   return lignes.map((ligne) => {
@@ -169,12 +188,17 @@ export async function ajouterLigneBudget({ category, planned }, annee = new Date
 
 export async function getHistoriqueDepenses(anneeDebut, anneeFin) {
   const [lignes] = await pool.query(
-    `SELECT YEAR(t.date_transaction) AS annee, c.libelle AS categorie, SUM(t.montant) AS montant
+    // LEFT JOIN : les depenses sans categorie (ex. les travaux imputes a un
+    // projet) etaient ignorees, donc l'historique et les statistiques
+    // affichaient 2 580 CHF pour 2026 au lieu des 77 380 CHF du tableau de bord.
+    `SELECT YEAR(t.date_transaction) AS annee,
+       COALESCE(c.libelle, CASE WHEN t.id_projet IS NOT NULL THEN 'Travaux (projets)' ELSE 'Sans catégorie' END) AS categorie,
+       SUM(t.montant) AS montant
      FROM Transactions t
-     JOIN Categories c ON c.id = t.id_categorie
+     LEFT JOIN Categories c ON c.id = t.id_categorie
      WHERE t.id_ppe = ? AND t.type = 'depense'
        AND YEAR(t.date_transaction) BETWEEN ? AND ?
-     GROUP BY YEAR(t.date_transaction), c.libelle
+     GROUP BY annee, categorie
      ORDER BY annee ASC, categorie ASC`,
     [ID_PPE_DEFAUT, anneeDebut, anneeFin],
   )

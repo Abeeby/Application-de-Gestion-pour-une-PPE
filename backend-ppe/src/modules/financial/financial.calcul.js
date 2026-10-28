@@ -71,3 +71,24 @@ export function validerLigneBudget({ category, planned } = {}) {
 
   return erreurs
 }
+
+/**
+ * Evolution mensuelle de l'exercice pour le graphique du tableau de bord.
+ * Transforme les totaux SQL (un par mois et par type, mois sans mouvement
+ * absents) en 12 mois complets, de janvier a decembre.
+ * @param {{mois: number, type: 'recette'|'depense', total: number|string}[]} lignes
+ * @returns {{mois: number, recettes: number, depenses: number}[]} 12 elements
+ */
+export function construireEvolutionMensuelle(lignes = []) {
+  const mois = Array.from({ length: 12 }, (_, index) => ({ mois: index + 1, recettes: 0, depenses: 0 }))
+
+  for (const ligne of lignes) {
+    const numero = Number(ligne.mois)
+    if (!Number.isInteger(numero) || numero < 1 || numero > 12) continue
+    const cle = ligne.type === 'recette' ? 'recettes' : ligne.type === 'depense' ? 'depenses' : null
+    if (!cle) continue
+    mois[numero - 1][cle] = arrondir(mois[numero - 1][cle] + (Number(ligne.total) || 0))
+  }
+
+  return mois
+}

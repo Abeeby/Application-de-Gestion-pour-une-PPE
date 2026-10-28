@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import styles from './rapports.module.css'
+import MenuLateral from '@/components/MenuLateral'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 const mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
@@ -64,7 +64,7 @@ export default function RapportsPage() {
     async function verifier() {
       try {
         const token = localStorage.getItem('ppe_token')
-        if (!token) { setErreur('Connecte-toi depuis le tableau de bord pour accéder aux rapports.'); return }
+        if (!token) { setErreur('Connectez-vous depuis le tableau de bord pour accéder aux rapports.'); return }
         const reponse = await fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` }, signal: controleur.signal })
         if (reponse.status === 401) { setErreur('Session expirée : reconnecte-toi.'); return }
         if (!reponse.ok) throw new Error('Impossible de vérifier la connexion')
@@ -97,7 +97,7 @@ export default function RapportsPage() {
     const parametres = parametresSelection()
     try {
       const reponse = await fetch(`${API_URL}/api/rapports?${parametres}`, { headers: { Authorization: `Bearer ${localStorage.getItem('ppe_token')}` } })
-      if (reponse.status === 404) throw new Error('Redémarre le backend pour charger les nouvelles routes de rapports.')
+      if (reponse.status === 404) throw new Error('Le service de rapports est momentanément indisponible.')
       const data = await reponse.json()
       if (!reponse.ok) throw new Error(data.error || 'Impossible de générer le rapport')
       setRapport(data)
@@ -136,9 +136,10 @@ export default function RapportsPage() {
   const selectionModifiee = rapport !== null && parametresSelection() !== parametresRapport
 
   return (
-    <main className={styles.page}>
-      <Link href="/" className={styles.sansImpression}>← Tableau de bord principal</Link>
-      <h1 style={{ fontSize: 28, marginTop: 20 }}>Rapports de suivi budgétaire</h1>
+    <div className="flex min-h-screen bg-[#f5f7fb] font-sans text-slate-900">
+      <MenuLateral />
+      <main className={`${styles.page} min-w-0 flex-1`}>
+      <h1 className="text-3xl font-bold text-slate-900">Rapports de suivi budgétaire</h1>
       <p>Produire un rapport périodique et exporter les données pour la comptabilité.</p>
       {verification && <p role="status">Vérification de la connexion…</p>}
       {erreur && <p role="alert" className={styles.erreur}>{erreur}</p>}
@@ -151,7 +152,7 @@ export default function RapportsPage() {
             {type === 'trimestriel' && <label>Trimestre<select className={styles.champ} value={trimestre} onChange={e => setTrimestre(e.target.value)}>{[1, 2, 3, 4].map(t => <option key={t} value={t}>Trimestre {t}</option>)}</select></label>}
           </div>
           <button className={styles.bouton} style={{ marginTop: 16 }} disabled={chargement || exportEnCours}>{chargement ? 'Génération…' : 'Générer le rapport'}</button>
-          {selectionModifiee && <p role="status" className={styles.attention}>La période a changé : génère un nouveau rapport. Le rapport affiché et ses exports concernent toujours la période précédente.</p>}
+          {selectionModifiee && <p role="status" className={styles.attention}>La période a changé : générez un nouveau rapport. Le rapport affiché et ses exports concernent toujours la période précédente.</p>}
         </form>
         {rapport && <>
           <section className={styles.bloc}>
@@ -202,6 +203,7 @@ export default function RapportsPage() {
           </section>
         </>}
       </>}
-    </main>
+      </main>
+    </div>
   )
 }

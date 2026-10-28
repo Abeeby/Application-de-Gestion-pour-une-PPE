@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import BanniereConnexion from '@/components/BanniereConnexion'
 import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
-import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Upload, Plus, Activity, Calculator, ArrowUpRight } from 'lucide-react'
+import { FileText, Wallet, Upload, ArrowUpRight } from 'lucide-react'
+import MenuLateral from '@/components/MenuLateral'
+import { dateDuJour, formatChf } from '@/lib/format'
 
 
 type Revenu = { id: number; montant: number; date: string; categorie: string; appartement: string }
@@ -89,7 +90,8 @@ export default function RevenusPage() {
       })
       const data = await response.json()
       if (!response.ok) {
-        setErreurs(data.erreurs ?? ['Impossible d’enregistrer le revenu'])
+        // 403 : la saisie des revenus est reservee a l'administrateur
+        setErreurs(response.status === 403 ? ['Action réservée à l’administrateur.'] : data.erreurs ?? ['Impossible d’enregistrer le revenu'])
         return
       }
       setMontant('')
@@ -120,7 +122,7 @@ export default function RevenusPage() {
       const response = await apiFetch('/api/revenus/import', { method: 'POST', body: donnees })
       const data = await response.json()
       if (!response.ok) {
-        setErreurs(data.erreurs ?? ['Import impossible'])
+        setErreurs(response.status === 403 ? ['Action réservée à l’administrateur.'] : data.erreurs ?? ['Import impossible'])
         return
       }
       setFichier(null)
@@ -134,68 +136,17 @@ export default function RevenusPage() {
     }
   }
 
-  const formatMontant = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'CHF' })
+  const formatMontant = new Intl.NumberFormat('fr-CH', { style: 'currency', currency: 'CHF' })
+
+  // Cartes du haut : calculees sur les vrais revenus (avant : chiffres en dur)
+  const anneeCourante = new Date().getFullYear()
+  const revenusAnnee = revenus.filter(r => r.date?.startsWith(String(anneeCourante)))
+  const totalAnnee = revenusAnnee.reduce((somme, r) => somme + Number(r.montant), 0)
+  const moyenneMensuelle = totalAnnee / (new Date().getMonth() + 1)
 
   return (
     <div className="flex min-h-screen bg-[#f5f7fb] font-sans text-slate-900">
-      <aside className="hidden w-64 flex-shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-        <div className="flex items-center gap-3 p-6">
-          <div className="rounded-lg bg-emerald-600 p-2 text-sm font-bold text-white">PPE</div>
-          <div>
-            <h2 className="text-sm font-bold leading-tight text-slate-900">PPE Gestion</h2>
-            <p className="text-xs text-slate-500">Gestion de copropriété</p>
-          </div>
-        </div>
-
-        <div className="px-4 pb-3">
-          <button className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-medium text-slate-700 shadow-sm">
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-emerald-600" /> Les Terrasses</span>
-            <span className="text-slate-400">▼</span>
-          </button>
-        </div>
-
-        <div className="px-4 pb-3">
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5 text-sm font-semibold text-orange-700 shadow-sm transition hover:bg-orange-100">
-            <span className="text-lg leading-none">＋</span> Nouvelle PPE
-          </button>
-        </div>
-
-        <nav className="flex-1 space-y-1 px-4">
-          <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <LayoutDashboard className="h-5 w-5" /> Tableau de bord
-          </Link>
-          <Link href="/electricite" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Zap className="h-5 w-5 fill-current" /> Électricité
-          </Link>
-          <Link href="/statistiques" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Activity className="h-5 w-5" /> Statistiques
-          </Link>
-          <Link href="/saisie" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <FileText className="h-5 w-5" /> Dépenses
-          </Link>
-          <Link href="/revenus" className="flex items-center gap-3 rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-medium text-white shadow-sm transition">
-            <Wallet className="h-5 w-5" /> Revenus
-          </Link>
-          <Link href="/projets" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Folder className="h-5 w-5" /> Projets
-          </Link>
-          <Link href="/historique" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <BarChart2 className="h-5 w-5" /> Historique
-          </Link>
-          <Link href="/charges" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Calculator className="h-5 w-5" /> Charges
-          </Link>
-        </nav>
-
-        <div className="space-y-1 border-t border-slate-200 p-4">
-          <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Settings className="h-5 w-5" /> Paramètres
-          </a>
-          <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50">
-            <LogOut className="h-5 w-5" /> Déconnexion
-          </Link>
-        </div>
-      </aside>
+      <MenuLateral />
 
       <main className="flex-1 overflow-auto p-8">
         <div className="mx-auto max-w-7xl">
@@ -206,12 +157,9 @@ export default function RevenusPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm">
-                Mardi, 25 août 2026
+              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium capitalize text-slate-700 shadow-sm">
+                {dateDuJour()}
               </div>
-              <button className="rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50">
-                <Bell className="h-5 w-5" />
-              </button>
             </div>
           </header>
 
@@ -220,23 +168,23 @@ export default function RevenusPage() {
           <section className="mb-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Revenus du mois</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Revenus {anneeCourante}</span>
                 <ArrowUpRight className="h-4 w-4 text-emerald-500" />
               </div>
-              <p className="mb-2 text-3xl font-bold text-slate-900">CHF 42'150</p>
+              <p className="mb-2 text-3xl font-bold text-slate-900">{formatChf(totalAnnee, false)}</p>
               <div className="flex items-center gap-2 text-xs">
-                <span className="rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">+12,1% vs mois dernier</span>
+                <span className="rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">{revenusAnnee.length} encaissement(s) cette année</span>
               </div>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Trésorerie</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Moyenne mensuelle</span>
                 <Wallet className="h-4 w-4 text-emerald-500" />
               </div>
-              <p className="mb-2 text-3xl font-bold text-slate-900">CHF 96'420</p>
+              <p className="mb-2 text-3xl font-bold text-slate-900">{formatChf(moyenneMensuelle, false)}</p>
               <div className="flex items-center gap-2 text-xs">
-                <span className="rounded bg-sky-100 px-2 py-0.5 font-medium text-sky-700">Solde disponible</span>
+                <span className="rounded bg-sky-100 px-2 py-0.5 font-medium text-sky-700">Depuis le 1er janvier</span>
               </div>
             </div>
 
@@ -259,9 +207,6 @@ export default function RevenusPage() {
                   <h2 className="text-xl font-semibold text-slate-900">Saisie manuelle</h2>
                   <p className="mt-1 text-sm text-slate-500">Renseignez les données du revenu à enregistrer.</p>
                 </div>
-                <button type="button" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
-                  <Upload className="h-4 w-4" /> Import CSV
-                </button>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">

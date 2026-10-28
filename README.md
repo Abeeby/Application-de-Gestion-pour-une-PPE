@@ -156,7 +156,7 @@ En tant que membre de la PPE (administrateur ou copropriétaire), je veux que l'
 - Contrôle côté client dans l'interface (`frontend-ppe/app/projets/page.tsx`) :
   - **Administrateur** : affichage du badge « Administrateur (Droits complets) », accès au bouton « + Nouveau projet », aux boutons « Modifier » et « Supprimer », ainsi qu'au formulaire complet d'édition.
   - **Copropriétaire** : affichage du badge « Copropriétaire (Lecture seule) », bandeau explicatif de gouvernance, boutons de modification/création masqués ou désactivés avec mention explicite.
-  - Sélecteur de rôle instantané dans l'en-tête permettant de basculer et tester immédiatement les deux comportements.
+  - Le rôle vient de la session réelle (KAN-12). Pour tester l'autre rôle : se déconnecter puis se reconnecter avec l'autre compte de démo.
 
 ---
 
@@ -178,11 +178,15 @@ Le token a la forme `<contenu>.<signature>` : le contenu (`email` + date d'expir
 
 | Données | Non connecté | Copropriétaire (`owner`) | Administrateur (`admin`) |
 |---|---|---|---|
-| Tableau de bord, dépenses, revenus, historique, électricité | ❌ 401 | ✅ | ✅ |
+| Tableau de bord, historique, électricité : consulter | ❌ 401 | ✅ | ✅ |
+| Dépenses et revenus : consulter | ❌ 401 | ✅ | ✅ |
+| Dépenses et revenus : saisir, importer, supprimer | ❌ 401 | ❌ 403 | ✅ |
 | Projets : consulter | ❌ 401 | ✅ | ✅ |
 | Projets : créer / modifier / supprimer (KAN-37) | ❌ 401 | ❌ 403 | ✅ |
 | Budgets : créer (`POST /api/financial/budgets`) | ❌ 401 | ❌ 403 | ✅ |
-| Répartition des charges (KAN-22) | ❌ 401 | ❌ 403 | ✅ |
+| Répartition des charges (KAN-22), rapports (KAN-23) | ❌ 401 | ❌ 403 | ✅ |
+
+Pourquoi la saisie des revenus est réservée à l'administrateur : les revenus « Charges de copropriété » d'un lot comptent comme acomptes dans le décompte (KAN-22). Un copropriétaire pouvait donc s'en ajouter lui-même et faire baisser son propre solde de charges.
 
 ### Tests (`backend-ppe/src/modules/auth/`)
 
@@ -353,6 +357,12 @@ Les paramètres invalides sont refusés avec `400`, l'absence de session avec `4
 
 ---
 
+## Interface commune
+
+- `frontend-ppe/components/MenuLateral.tsx` : un seul menu pour toutes les pages. La page active est surlignée, les liens réservés à l'administrateur (Charges, Rapports) sont masqués pour un copropriétaire, et « Déconnexion » efface vraiment la session.
+- `frontend-ppe/lib/format.ts` : un seul format pour les montants (`CHF 1’500.00`) et les dates (`28.10.2026`).
+- Tous les chiffres affichés viennent de l'API (plus aucune valeur écrite en dur dans les pages).
+
 ## Structure des fichiers
 
 ```
@@ -365,8 +375,7 @@ backend-ppe/                 API Express (port 3001) branchée sur MySQL/MariaDB
   src/modules/<module>/      un dossier par fonctionnalité :
                              *.routes.js (Express), *.repository.js (SQL),
                              *.validation.js (règles), *.test.js (tests)
-  saisies.js, projets.js,    ancienne version "en mémoire" (avant la base),
-  revenus.js (+ .test.js)    plus utilisée par le serveur
+  src/validation/            règles partagées : date réelle, montant valide
 
 frontend-ppe/                Application Next.js (port 3000)
   app/
@@ -462,7 +471,7 @@ node --test src/modules/rapports/*.test.js
 
 ```bash
 cd frontend-ppe
-npm run lint      # vérifie le code React/TypeScript avec ESLint
+npm run lint      # vérifie le code React/TypeScript avec ESLint (0 erreur attendue)
 npm run build     # vérifie que l'application compile
 npm test          # calculs du tableau de bord interactif (KAN-28)
 ```

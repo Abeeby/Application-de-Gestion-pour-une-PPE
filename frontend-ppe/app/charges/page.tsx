@@ -4,18 +4,10 @@ import { Fragment, useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   AlertTriangle,
-  BarChart2,
-  Calculator,
   ChevronDown,
   ChevronRight,
-  FileText,
-  Folder,
-  LayoutDashboard,
-  LogOut,
-  Settings,
-  Wallet,
-  Zap,
 } from 'lucide-react'
+import MenuLateral from '@/components/MenuLateral'
 
 // --- KAN-22 : repartition des charges et rapprochement de comptes ---
 
@@ -133,48 +125,7 @@ export default function ChargesPage() {
 
   return (
     <div className="flex min-h-screen bg-[#f5f7fb] font-sans text-slate-900">
-      <aside className="hidden w-64 flex-shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-        <div className="flex items-center gap-3 p-6">
-          <div className="rounded-lg bg-emerald-600 p-2 text-sm font-bold text-white">PPE</div>
-          <div>
-            <h2 className="text-sm font-bold leading-tight text-slate-900">PPE Gestion</h2>
-            <p className="text-xs text-slate-500">Gestion de copropriété</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 space-y-1 px-4">
-          <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <LayoutDashboard className="h-5 w-5" /> Tableau de bord
-          </Link>
-          <Link href="/electricite" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Zap className="h-5 w-5 fill-current" /> Électricité
-          </Link>
-          <Link href="/saisie" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <FileText className="h-5 w-5" /> Dépenses
-          </Link>
-          <Link href="/revenus" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Wallet className="h-5 w-5" /> Revenus
-          </Link>
-          <Link href="/projets" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Folder className="h-5 w-5" /> Projets
-          </Link>
-          <Link href="/historique" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <BarChart2 className="h-5 w-5" /> Historique
-          </Link>
-          <Link href="/charges" className="flex items-center gap-3 rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-medium text-white shadow-sm transition">
-            <Calculator className="h-5 w-5" /> Charges
-          </Link>
-        </nav>
-
-        <div className="space-y-1 border-t border-slate-200 p-4">
-          <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Settings className="h-5 w-5" /> Paramètres
-          </a>
-          <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50">
-            <LogOut className="h-5 w-5" /> Déconnexion
-          </Link>
-        </div>
-      </aside>
+      <MenuLateral />
 
       <main className="flex-1 overflow-auto p-8">
         <div className="mx-auto max-w-7xl">

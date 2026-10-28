@@ -3,26 +3,15 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
-  Activity,
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
-  BarChart2,
-  Calculator,
-  History,
   Bell,
   CheckCircle2,
-  ChevronDown,
-  FileText,
-  Folder,
-  LayoutDashboard,
-  LogOut,
-  PiggyBank,
-  Plus,
-  Settings,
-  Users,
-  Zap,
 } from 'lucide-react'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import MenuLateral from '@/components/MenuLateral'
+import { formatDate } from '@/lib/format'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -48,6 +37,16 @@ type Summary = {
   activeAccounts: number
 }
 
+// Graphique "Revenus & depenses" : GET /api/financial/mensuel
+// Ligne renvoyee par GET /api/financial/transactions
+type Transaction = { id: string; type: 'income' | 'expense'; category: string; label: string; amount: number; date: string }
+
+type ProjetResume = { id: number; titre: string; progression: number; statut: string }
+const COULEUR_STATUT: Record<string, string> = { 'En cours': 'bg-blue-600', Planifié: 'bg-amber-400', Terminé: 'bg-emerald-500' }
+
+type MoisFinancier = { mois: number; recettes: number; depenses: number }
+const NOMS_MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
+
 // KAN-17 : alerte budgetaire renvoyee par GET /api/budgets/:annee/suivi
 type AlerteBudget = {
   niveau: 'depasse' | 'attention' | 'hors_budget'
@@ -67,15 +66,19 @@ export default function HomePage() {
   const [token, setToken] = useState('')
 
   useEffect(() => {
+    // localStorage n'existe que dans le navigateur : on le lit apres le
+    // premier rendu (le lire pendant le rendu casserait l'hydratation Next).
     const savedToken = localStorage.getItem('ppe_token')
     if (savedToken) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture unique du stockage navigateur
       setToken(savedToken)
     }
   }, [])
   const [user, setUser] = useState<User | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
-  const [transactions, setTransactions] = useState<any[]>([])
-  const [budgets, setBudgets] = useState<any[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [evolution, setEvolution] = useState<MoisFinancier[]>([])
+  const [projets, setProjets] = useState<ProjetResume[]>([])
   const [error, setError] = useState('')
   // null = alertes non accessibles (reservees a l'administrateur)
   const [alertes, setAlertes] = useState<AlerteBudget[] | null>([])
@@ -104,28 +107,30 @@ export default function HomePage() {
     setSummary(data.summary)
     setUser(data.user)
 
-    const [transactionsResponse, budgetsResponse] = await Promise.all([
-      fetch(`${API_URL}/api/financial/transactions`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      }),
-      fetch(`${API_URL}/api/financial/budgets`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      }),
-    ])
+    // (l'appel a /api/financial/budgets a ete retire : son resultat n'etait affiche nulle part)
+    const transactionsResponse = await fetch(`${API_URL}/api/financial/transactions`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
 
-    if (!transactionsResponse.ok || !budgetsResponse.ok) {
+    if (!transactionsResponse.ok) {
       throw new Error('Les données financières sont inaccessibles.')
     }
 
     const transactionsData = await transactionsResponse.json()
-    const budgetsData = await budgetsResponse.json()
-
     setTransactions(transactionsData.transactions)
-    setBudgets(budgetsData.budgets)
+
+    // Graphique mensuel de l'exercice (vraies donnees, plus de barres en dur)
+    const mensuelResponse = await fetch(`${API_URL}/api/financial/mensuel?annee=${data.summary.annee}`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+    setEvolution(mensuelResponse.ok ? (await mensuelResponse.json()).mois : [])
+
+    // Projets reels (KAN-33), les plus avances en premier
+    const projetsResponse = await fetch(`${API_URL}/api/projets`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+    const listeProjets: ProjetResume[] = projetsResponse.ok ? await projetsResponse.json() : []
+    setProjets([...listeProjets].sort((a, b) => b.progression - a.progression).slice(0, 4))
 
     // KAN-17 : alertes de depassement calculees en direct par le backend
     // (403 pour un coproprietaire : le suivi est reserve a l'administrateur)
@@ -159,7 +164,14 @@ export default function HomePage() {
       setUser(data.user)
       await fetchProtectedData(data.token)
     } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : 'Une erreur inconnue est survenue')
+      // fetch() leve une TypeError ("Failed to fetch") si le backend est eteint
+      setError(
+        loginError instanceof TypeError
+          ? 'Le serveur est injoignable. Vérifiez que le backend est démarré.'
+          : loginError instanceof Error
+            ? loginError.message
+            : 'Une erreur inconnue est survenue',
+      )
     } finally {
       setIsLoading(false)
     }
@@ -168,6 +180,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!token) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement des donnees a la connexion
     void fetchProtectedData(token).catch((fetchError) => {
       setError(fetchError instanceof Error ? fetchError.message : 'Erreur de chargement')
     })
@@ -187,6 +200,16 @@ export default function HomePage() {
     year: 'numeric',
   }).format(new Date())
 
+  // Token present mais donnees pas encore recues : evite d'afficher
+  // furtivement le formulaire de connexion au rechargement de la page.
+  if (token && !user && !error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
+        Chargement du tableau de bord…
+      </div>
+    )
+  }
+
   if (!token || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 font-sans text-slate-900">
@@ -199,7 +222,7 @@ export default function HomePage() {
                   <h1 className="text-3xl font-bold text-slate-900">Connexion</h1>
                 </div>
                 <div className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
-                  Admin
+                  Espace membres
                 </div>
               </div>
 
@@ -208,6 +231,8 @@ export default function HomePage() {
                   Email
                   <input
                     aria-label="Email"
+                    type="email"
+                    autoComplete="username"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-900 outline-none transition focus:border-blue-500"
@@ -256,85 +281,7 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen bg-[#f5f7fb] font-sans text-slate-900">
-      <aside className="w-full border-b border-slate-200 bg-white lg:w-56 lg:flex-shrink-0 lg:border-b-0 lg:border-r lg:flex lg:flex-col">
-        <div className="flex items-center gap-3 p-6">
-          <div className="rounded-lg bg-blue-600 p-2 text-sm font-bold text-white">PPE</div>
-          <div>
-            <h2 className="text-sm font-bold leading-tight text-slate-900">PPE Gestion</h2>
-            <p className="text-xs text-slate-500">Gestion de copropriété</p>
-          </div>
-        </div>
-
-        <div className="px-4 pb-3">
-          <button className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-medium text-slate-700 shadow-sm">
-            <span className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-              Les Terrasses
-            </span>
-            <ChevronDown className="h-4 w-4 text-slate-400" />
-          </button>
-        </div>
-
-        <div className="px-4 pb-3">
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5 text-sm font-semibold text-orange-700 shadow-sm transition hover:bg-orange-100">
-            <Plus className="h-4 w-4" /> Nouvelle PPE
-          </button>
-        </div>
-
-        <nav className="space-y-1 px-4 pb-2 pt-1">
-          <Link href="/" className="flex items-center gap-3 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-medium text-white shadow-sm transition">
-            <LayoutDashboard className="h-5 w-5" /> Tableau de bord
-          </Link>
-          <Link href="/electricite" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Zap className="h-5 w-5" /> Électricité
-          </Link>
-          <Link href="/statistiques" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Activity className="h-5 w-5" /> Statistiques
-          </Link>
-          <Link href="/saisie" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <FileText className="h-5 w-5" /> Dépenses
-          </Link>
-          <Link href="/revenus" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Users className="h-5 w-5" /> Revenus
-          </Link>
-          <Link href="/projets" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Folder className="h-5 w-5" /> Projets
-          </Link>
-          <Link href="/historique" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <BarChart2 className="h-5 w-5" /> Historique
-          </Link>
-          <Link href="/charges" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Calculator className="h-5 w-5" /> Charges
-          </Link>
-          <Link href="/modifications" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <History className="h-5 w-5" /> Journal
-          </Link>
-          <Link href="/budgets" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <PiggyBank className="h-5 w-5" /> Budgets
-          </Link>
-          {user.role === 'admin' && (
-            <Link href="/rapports" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-              <FileText className="h-5 w-5" /> Rapports
-            </Link>
-          )}
-        </nav>
-
-        <div className="mt-2 space-y-1 border-t border-slate-200 p-4">
-          <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Settings className="h-5 w-5" /> Paramètres
-          </a>
-          <button
-            type="button"
-            onClick={() => {
-              setToken('')
-              localStorage.removeItem('ppe_token')
-            }}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50"
-          >
-            <LogOut className="h-5 w-5" /> Déconnexion
-          </button>
-        </div>
-      </aside>
+      <MenuLateral onDeconnexion={() => setToken('')} />
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
         <div className="mx-auto max-w-7xl">
@@ -434,7 +381,7 @@ export default function HomePage() {
               <div className="mb-5 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900">Revenus & dépenses</h2>
-                  <p className="mt-1 text-sm text-slate-500">Evolution mensuelle • 2026</p>
+                  <p className="mt-1 text-sm text-slate-500">Évolution mensuelle • {summary?.annee ?? new Date().getFullYear()}</p>
                 </div>
                 <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
                   <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Revenus</span>
@@ -442,47 +389,53 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="h-64 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4">
-                <div className="flex h-full items-end justify-between gap-3">
-                  {[44, 52, 48, 61, 58, 74, 80, 70, 90].map((value, index) => (
-                    <div key={index} className="flex flex-1 flex-col items-center justify-end gap-3">
-                      <div className="relative w-full">
-                        <div
-                          className="w-full rounded-t-md bg-emerald-500"
-                          style={{ height: `${value}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-slate-400">
-                        {['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep'][index]}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+              <div className="h-64">
+                {evolution.length === 0 ? (
+                  <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-400">
+                    Aucun mouvement enregistré pour cet exercice
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={evolution.map((m) => ({ ...m, nom: NOMS_MOIS[m.mois - 1] }))} barGap={2}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="nom" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={56}
+                        tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
+                      <Tooltip formatter={(v) => currency.format(Number(v))} cursor={{ fill: '#f1f5f9' }} />
+                      <Bar dataKey="recettes" name="Revenus" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="depenses" name="Dépenses" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-slate-900">Projets en cours</h2>
-                <button className="text-sm font-medium text-blue-600">Voir tout</button>
+                <Link href="/projets" className="text-sm font-medium text-blue-600 hover:underline">Voir tout</Link>
               </div>
 
               <div className="space-y-5">
-                {[
-                  { label: 'Rénovation du toit', value: 88, color: 'bg-blue-600' },
-                  { label: 'Rénovation de la façade', value: 35, color: 'bg-orange-400' },
-                  { label: 'Éclairage LED garages', value: 90, color: 'bg-emerald-500' },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-700">{item.label}</span>
-                      <span className="font-semibold text-slate-700">{item.value}%</span>
+                {projets.length === 0 ? (
+                  <p className="text-sm text-slate-400">Aucun projet enregistré.</p>
+                ) : (
+                  projets.map((projet) => (
+                    <div key={projet.id}>
+                      <div className="mb-2 flex items-center justify-between text-sm">
+                        <span className="font-medium text-slate-700">{projet.titre}</span>
+                        <span className="font-semibold text-slate-700">{projet.progression}%</span>
+                      </div>
+                      <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className={`h-full rounded-full ${COULEUR_STATUT[projet.statut] ?? 'bg-slate-400'}`}
+                          style={{ width: `${Math.min(100, projet.progression)}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400">{projet.statut}</p>
                     </div>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-                      <div className={`h-full rounded-full ${item.color}`} style={{ width: `${item.value}%` }} />
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </section>
@@ -491,7 +444,7 @@ export default function HomePage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-slate-900">Dernières transactions</h2>
-                <button className="text-sm font-medium text-slate-500">Historique</button>
+                <Link href="/tableau-de-bord" className="text-sm font-medium text-blue-600 hover:underline">Tout voir</Link>
               </div>
 
               <div className="space-y-4">
@@ -503,7 +456,7 @@ export default function HomePage() {
                       </div>
                       <div>
                         <p className="font-medium text-slate-800">{transaction.label}</p>
-                        <p className="text-xs text-slate-500">{transaction.date}</p>
+                        <p className="text-xs text-slate-500">{formatDate(transaction.date)} · {transaction.category}</p>
                       </div>
                     </div>
                     <div className={`font-semibold ${transaction.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
