@@ -6,6 +6,173 @@ Le frontend utilise Next.js et le backend Express. Les données sont enregistré
 
 ---
 
+## Equipe
+- Product Owner : Amin Torrisi - Abeeby
+- Scrum Master : Arthur Saugy - arthursaugycpnv & IsxsI & arthurSaugy
+- Dev : Farah Mohamed - Farah1530
+- Dev : Ruben ten Cate - Ruben-rtc & Ruben-ten-Cate
+- Dev : Tavee Matta - Joetyson1403
+- Dev : Kodjo Attivon - kodjo2
+- Dev : Eyuel Worku - eyuel2020kurosaki
+- Dev : Sellé Sow - Keyshi9
+
+---
+
+## Lancer le projet
+
+Il faut **3 choses** qui tournent : la base de données, le backend et le frontend.
+
+**0 — Base de données** (une seule fois, voir `backend-ppe/README.md`)
+
+```bash
+cd backend-ppe
+mysql -u root -p < BD.sql      # crée la base PPE (efface l'ancienne !)
+cp .env.example .env           # puis mettre vos identifiants MySQL
+npm install
+npm run seed                   # données de démo + comptes de connexion
+```
+
+MySQL/MariaDB doit être démarré et la base configurée dans `backend-ppe/.env`. Pour une première installation, suivre le [README du backend](backend-ppe/README.md#mise-en-route). Si la base contient déjà des données à conserver, ne pas réimporter `BD.sql` ni relancer le seed, qui réinitialisent les données.
+
+**Terminal 1 — Backend** (port 3001)
+
+```bash
+cd backend-ppe
+npm start
+```
+
+**Terminal 2 — Frontend** (port 3000)
+
+```bash
+cd frontend-ppe
+npm install
+npm run dev
+```
+
+Les pages sont ensuite accessibles à ces adresses :
+
+| Page | Adresse |
+|------|---------|
+| Connexion et tableau de bord | http://localhost:3000 |
+| Saisie des dépenses | http://localhost:3000/saisie |
+| Saisie des revenus | http://localhost:3000/revenus |
+| Historique des dépenses | http://localhost:3000/historique |
+| Électricité | http://localhost:3000/electricite |
+| Projets spécifiques PPE | http://localhost:3000/projets |
+| Répartition des charges | http://localhost:3000/charges |
+| Graphiques financiers | http://localhost:3000/statistiques |
+| Tableau de bord interactif | http://localhost:3000/tableau-de-bord |
+| Budget annuel et suivi | http://localhost:3000/budgets |
+| Journal des modifications | http://localhost:3000/modifications |
+| Rapports budgétaires (administrateur) | http://localhost:3000/rapports |
+
+---
+
+## Dépannage : « Erreur 500 »
+
+La cause la plus fréquente est une **base créée avec une ancienne version de `BD.sql`**. Quand une fonctionnalité ajoute une table ou une colonne (ex. le journal KAN-35, le budget KAN-15), les bases déjà créées ne sont pas mises à jour toutes seules.
+
+Au démarrage, le backend compare la base à `BD.sql` et affiche dans le terminal ce qui manque :
+
+```
+!!! La base de donnees n est pas a jour par rapport a BD.sql !!!
+  Tables manquantes   : Historique
+  Colonnes manquantes : Budgets_Annuels.date_approbation
+```
+
+Pour corriger (efface les données de la base PPE et remet les données de démo) :
+
+```bash
+cd backend-ppe
+git pull
+mysql -u root -p < BD.sql
+npm run seed
+npm start
+```
+
+`http://localhost:3001/api/health` indique aussi si la base est à jour (`schema.aJour`). Pour voir le détail technique d'une erreur 500 dans la réponse, ajouter `NODE_ENV=development` dans `backend-ppe/.env`. Le détail s'affiche toujours dans le terminal du backend.
+
+L'application est testée sur **MySQL 8** et **MariaDB** (mode strict `ONLY_FULL_GROUP_BY` compris).
+
+---
+
+## Lancer les tests et le lint
+
+Les tests utilisent le testeur intégré de Node. Installer les dépendances du backend avant de les lancer.
+
+```bash
+cd backend-ppe
+npm test          # sans base : les tests d'intégration sont "skipped"
+                  # avec base + .env : tous les tests tournent
+```
+
+Les tests d'intégration des rapports (KAN-23) s'activent en plus avec la variable `PPE_REPORTS_DB_TESTS` :
+
+```powershell
+cd backend-ppe
+$env:PPE_REPORTS_DB_TESTS='1'
+node --test src/modules/rapports/*.test.js
+```
+
+```bash
+cd frontend-ppe
+npm run lint      # vérifie le code React/TypeScript avec ESLint (0 erreur attendue)
+npm run build     # vérifie que l'application compile
+npm test          # calculs du tableau de bord interactif (KAN-28)
+```
+---
+
+## Interface commune
+- `frontend-ppe/components/MenuLateral.tsx` : un seul menu pour toutes les pages. La page active est surlignée, les liens réservés à l'administrateur (Charges, Rapports) sont masqués pour un copropriétaire, et « Déconnexion » efface vraiment la session.
+- `frontend-ppe/lib/format.ts` : un seul format pour les montants (`CHF 1’500.00`) et les dates (`28.10.2026`).
+- `frontend-ppe/components/BandeauConsultation.tsx` : un copropriétaire voit un bandeau « Mode consultation » à la place des formulaires de saisie (le rôle est lu par `lib/useRole.ts`).
+- Tous les chiffres affichés viennent de l'API (plus aucune valeur écrite en dur dans les pages).
+
+## Structure des fichiers
+
+```
+backend-ppe/                 API Express (port 3001) branchée sur MySQL/MariaDB
+  index.js                   assemblage de l'app (middlewares, routes, erreurs)
+  BD.sql                     création de la base et de toutes les tables
+  src/config/                variables d'environnement (.env), constantes
+  src/db/                    pool MySQL + script de seed (données de démo),
+                             schema.js (base à jour par rapport à BD.sql ?),
+                             erreurs.js (erreurs SQL traduites en messages clairs)
+  src/middleware/auth.js     requireAuth / requireRole
+  src/modules/<module>/      un dossier par fonctionnalité :
+                             *.routes.js (Express), *.repository.js (SQL),
+                             *.validation.js (règles), *.test.js (tests)
+  src/validation/            règles partagées : date réelle, montant valide
+
+frontend-ppe/                Application Next.js (port 3000)
+  app/
+    page.tsx                 connexion et tableau de bord (KAN-12 / KAN-26)
+    saisie/page.tsx          KAN-19 : saisie des dépenses
+    revenus/page.tsx         KAN-18 : saisie des revenus
+    historique/page.tsx      KAN-29 : historique pluriannuel
+    electricite/page.tsx     KAN-32 : production photovoltaïque
+    projets/page.tsx         KAN-33 / KAN-37 : projets et droits
+    charges/page.tsx         KAN-22 : répartition des charges
+    statistiques/page.tsx    KAN-30 : graphiques financiers
+    tableau-de-bord/page.tsx KAN-28 : tableau de bord interactif
+    budgets/page.tsx         KAN-15 / KAN-17 : budget annuel et suivi
+    modifications/page.tsx   KAN-35 : journal des modifications
+    rapports/page.tsx        KAN-23 : rapports et exports CSV
+```
+
+Le détail du backend (installation de la base, endpoints, comptes de démo) est dans [`backend-ppe/README.md`](backend-ppe/README.md).
+
+### Catégories disponibles
+
+Les catégories sont lues dans la table `Categories`. Les formulaires proposent celles qui correspondent au type de mouvement (dépense ou revenu).
+
+---
+
+## Prototype
+
+Lien du prototype Figma : https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1
+
+---
 ## KAN-19 : Module de saisie des dépenses
 
 ### User story
@@ -356,156 +523,3 @@ Les paramètres invalides sont refusés avec `400`, l'absence de session avec `4
 14 tests unitaires couvrent les périodes, les calculs au centime, le suivi annuel et les exports CSV. 4 tests d'intégration vérifient les droits, les totaux en base et les réponses de l'API. Ces derniers sont activés explicitement et ne modifient aucune donnée. Voir les commandes dans le [README du backend](backend-ppe/README.md#kan-23--rapports-périodiques-et-export-comptable).
 
 ---
-
-## Interface commune
-
-- `frontend-ppe/components/MenuLateral.tsx` : un seul menu pour toutes les pages. La page active est surlignée, les liens réservés à l'administrateur (Charges, Rapports) sont masqués pour un copropriétaire, et « Déconnexion » efface vraiment la session.
-- `frontend-ppe/lib/format.ts` : un seul format pour les montants (`CHF 1’500.00`) et les dates (`28.10.2026`).
-- Tous les chiffres affichés viennent de l'API (plus aucune valeur écrite en dur dans les pages).
-
-## Structure des fichiers
-
-```
-backend-ppe/                 API Express (port 3001) branchée sur MySQL/MariaDB
-  index.js                   assemblage de l'app (middlewares, routes, erreurs)
-  BD.sql                     création de la base et de toutes les tables
-  src/config/                variables d'environnement (.env), constantes
-  src/db/                    pool MySQL + script de seed (données de démo)
-  src/middleware/auth.js     requireAuth / requireRole
-  src/modules/<module>/      un dossier par fonctionnalité :
-                             *.routes.js (Express), *.repository.js (SQL),
-                             *.validation.js (règles), *.test.js (tests)
-  src/validation/            règles partagées : date réelle, montant valide
-
-frontend-ppe/                Application Next.js (port 3000)
-  app/
-    page.tsx                 connexion et tableau de bord (KAN-12 / KAN-26)
-    saisie/page.tsx          KAN-19 : saisie des dépenses
-    revenus/page.tsx         KAN-18 : saisie des revenus
-    historique/page.tsx      KAN-29 : historique pluriannuel
-    electricite/page.tsx     KAN-32 : production photovoltaïque
-    projets/page.tsx         KAN-33 / KAN-37 : projets et droits
-    charges/page.tsx         KAN-22 : répartition des charges
-    statistiques/page.tsx    KAN-30 : graphiques financiers
-    tableau-de-bord/page.tsx KAN-28 : tableau de bord interactif
-    budgets/page.tsx         KAN-15 / KAN-17 : budget annuel et suivi
-    modifications/page.tsx   KAN-35 : journal des modifications
-    rapports/page.tsx        KAN-23 : rapports et exports CSV
-```
-
-Le détail du backend (installation de la base, endpoints, comptes de démo) est dans [`backend-ppe/README.md`](backend-ppe/README.md).
-
-### Catégories disponibles
-
-Les catégories sont lues dans la table `Categories`. Les formulaires proposent celles qui correspondent au type de mouvement (dépense ou revenu).
-
----
-
-## Lancer le projet
-
-Il faut **3 choses** qui tournent : la base de données, le backend et le frontend.
-
-**0 — Base de données** (une seule fois, voir `backend-ppe/README.md`)
-
-```bash
-cd backend-ppe
-mysql -u root -p < BD.sql      # crée la base PPE (efface l'ancienne !)
-cp .env.example .env           # puis mettre vos identifiants MySQL
-npm install
-npm run seed                   # données de démo + comptes de connexion
-```
-
-MySQL/MariaDB doit être démarré et la base configurée dans `backend-ppe/.env`. Pour une première installation, suivre le [README du backend](backend-ppe/README.md#mise-en-route). Si la base contient déjà des données à conserver, ne pas réimporter `BD.sql` ni relancer le seed, qui réinitialisent les données.
-
-**Terminal 1 — Backend** (port 3001)
-
-```bash
-cd backend-ppe
-npm start
-```
-
-**Terminal 2 — Frontend** (port 3000)
-
-```bash
-cd frontend-ppe
-npm install
-npm run dev
-```
-
-Les pages sont ensuite accessibles à ces adresses :
-
-| Page | Adresse |
-|------|---------|
-| Connexion et tableau de bord | http://localhost:3000 |
-| Saisie des dépenses | http://localhost:3000/saisie |
-| Saisie des revenus | http://localhost:3000/revenus |
-| Historique des dépenses | http://localhost:3000/historique |
-| Électricité | http://localhost:3000/electricite |
-| Projets spécifiques PPE | http://localhost:3000/projets |
-| Répartition des charges | http://localhost:3000/charges |
-| Graphiques financiers | http://localhost:3000/statistiques |
-| Tableau de bord interactif | http://localhost:3000/tableau-de-bord |
-| Budget annuel et suivi | http://localhost:3000/budgets |
-| Journal des modifications | http://localhost:3000/modifications |
-| Rapports budgétaires (administrateur) | http://localhost:3000/rapports |
-
----
-
-## Dépannage : « Erreur 500 »
-
-La cause la plus fréquente est une **base créée avec une ancienne version de `BD.sql`**. Quand une fonctionnalité ajoute une table ou une colonne (ex. le journal KAN-35, le budget KAN-15), les bases déjà créées ne sont pas mises à jour toutes seules.
-
-Au démarrage, le backend compare la base à `BD.sql` et affiche dans le terminal ce qui manque :
-
-```
-!!! La base de donnees n est pas a jour par rapport a BD.sql !!!
-  Tables manquantes   : Historique
-  Colonnes manquantes : Budgets_Annuels.date_approbation
-```
-
-Pour corriger (efface les données de la base PPE et remet les données de démo) :
-
-```bash
-cd backend-ppe
-git pull
-mysql -u root -p < BD.sql
-npm run seed
-npm start
-```
-
-`http://localhost:3001/api/health` indique aussi si la base est à jour (`schema.aJour`). Pour voir le détail technique d'une erreur 500 dans la réponse, ajouter `NODE_ENV=development` dans `backend-ppe/.env`. Le détail s'affiche toujours dans le terminal du backend.
-
-L'application est testée sur **MySQL 8** et **MariaDB** (mode strict `ONLY_FULL_GROUP_BY` compris).
-
----
-
-## Lancer les tests et le lint
-
-Les tests utilisent le testeur intégré de Node. Installer les dépendances du backend avant de les lancer.
-
-```bash
-cd backend-ppe
-npm test          # sans base : les tests d'intégration sont "skipped"
-                  # avec base + .env : tous les tests tournent
-```
-
-Les tests d'intégration des rapports (KAN-23) s'activent en plus avec la variable `PPE_REPORTS_DB_TESTS` :
-
-```powershell
-cd backend-ppe
-$env:PPE_REPORTS_DB_TESTS='1'
-node --test src/modules/rapports/*.test.js
-```
-
-```bash
-cd frontend-ppe
-npm run lint      # vérifie le code React/TypeScript avec ESLint (0 erreur attendue)
-npm run build     # vérifie que l'application compile
-npm test          # calculs du tableau de bord interactif (KAN-28)
-```
-
----
-
-## Prototype
-
-Lien du prototype Figma : https://www.figma.com/proto/VLnF9yMvQWJWMkNjw85VOY/Untitled?node-id=0-1&t=gHqj4aeOhw9YSFcC-1
