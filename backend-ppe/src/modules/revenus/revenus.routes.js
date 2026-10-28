@@ -83,7 +83,12 @@ revenusRouter.post('/import', requireRole('admin'), upload.single('fichier'), as
   }
 
   try {
-    const classeur = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true })
+    // CSV : lu comme du texte brut (raw: true). Sinon la librairie convertit
+    // elle-meme "04/03/2026" en date AMERICAINE (3 avril) ; c'est
+    // normaliserDateImport qui lit le format suisse JJ/MM/AAAA.
+    // Excel : les cellules de type date sont gardees en objets Date.
+    const estCsv = /\.csv$/i.test(req.file.originalname)
+    const classeur = XLSX.read(req.file.buffer, estCsv ? { type: 'buffer', raw: true } : { type: 'buffer', cellDates: true })
     const feuille = classeur.Sheets[classeur.SheetNames[0]]
     // raw: true -> une cellule date reste un objet Date. Avec raw: false,
     // Excel la donnait au format americain "3/4/26" (4 mars) que l'on lisait
