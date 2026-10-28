@@ -16,48 +16,6 @@ Le frontend utilise Next.js et le backend Express. Les données sont enregistré
 - Dev : Eyuel Worku - eyuel2020kurosaki
 - Dev : Sellé Sow - Keyshi9
 
-## Interface commune
-
-- `frontend-ppe/components/MenuLateral.tsx` : un seul menu pour toutes les pages. La page active est surlignée, les liens réservés à l'administrateur (Charges, Rapports) sont masqués pour un copropriétaire, et « Déconnexion » efface vraiment la session.
-- `frontend-ppe/lib/format.ts` : un seul format pour les montants (`CHF 1’500.00`) et les dates (`28.10.2026`).
-- Tous les chiffres affichés viennent de l'API (plus aucune valeur écrite en dur dans les pages).
-
-## Structure des fichiers
-
-```
-backend-ppe/                 API Express (port 3001) branchée sur MySQL/MariaDB
-  index.js                   assemblage de l'app (middlewares, routes, erreurs)
-  BD.sql                     création de la base et de toutes les tables
-  src/config/                variables d'environnement (.env), constantes
-  src/db/                    pool MySQL + script de seed (données de démo)
-  src/middleware/auth.js     requireAuth / requireRole
-  src/modules/<module>/      un dossier par fonctionnalité :
-                             *.routes.js (Express), *.repository.js (SQL),
-                             *.validation.js (règles), *.test.js (tests)
-  src/validation/            règles partagées : date réelle, montant valide
-
-frontend-ppe/                Application Next.js (port 3000)
-  app/
-    page.tsx                 connexion et tableau de bord (KAN-12 / KAN-26)
-    saisie/page.tsx          KAN-19 : saisie des dépenses
-    revenus/page.tsx         KAN-18 : saisie des revenus
-    historique/page.tsx      KAN-29 : historique pluriannuel
-    electricite/page.tsx     KAN-32 : production photovoltaïque
-    projets/page.tsx         KAN-33 / KAN-37 : projets et droits
-    charges/page.tsx         KAN-22 : répartition des charges
-    statistiques/page.tsx    KAN-30 : graphiques financiers
-    tableau-de-bord/page.tsx KAN-28 : tableau de bord interactif
-    budgets/page.tsx         KAN-15 / KAN-17 : budget annuel et suivi
-    modifications/page.tsx   KAN-35 : journal des modifications
-    rapports/page.tsx        KAN-23 : rapports et exports CSV
-```
-
-Le détail du backend (installation de la base, endpoints, comptes de démo) est dans [`backend-ppe/README.md`](backend-ppe/README.md).
-
-### Catégories disponibles
-
-Les catégories sont lues dans la table `Categories`. Les formulaires proposent celles qui correspondent au type de mouvement (dépense ou revenu).
-
 ---
 
 ## Lancer le projet
@@ -134,6 +92,48 @@ npm run lint      # vérifie le code React/TypeScript avec ESLint (0 erreur atte
 npm run build     # vérifie que l'application compile
 npm test          # calculs du tableau de bord interactif (KAN-28)
 ```
+---
+
+## Interface commune
+- `frontend-ppe/components/MenuLateral.tsx` : un seul menu pour toutes les pages. La page active est surlignée, les liens réservés à l'administrateur (Charges, Rapports) sont masqués pour un copropriétaire, et « Déconnexion » efface vraiment la session.
+- `frontend-ppe/lib/format.ts` : un seul format pour les montants (`CHF 1’500.00`) et les dates (`28.10.2026`).
+- Tous les chiffres affichés viennent de l'API (plus aucune valeur écrite en dur dans les pages).
+
+## Structure des fichiers
+
+```
+backend-ppe/                 API Express (port 3001) branchée sur MySQL/MariaDB
+  index.js                   assemblage de l'app (middlewares, routes, erreurs)
+  BD.sql                     création de la base et de toutes les tables
+  src/config/                variables d'environnement (.env), constantes
+  src/db/                    pool MySQL + script de seed (données de démo)
+  src/middleware/auth.js     requireAuth / requireRole
+  src/modules/<module>/      un dossier par fonctionnalité :
+                             *.routes.js (Express), *.repository.js (SQL),
+                             *.validation.js (règles), *.test.js (tests)
+  src/validation/            règles partagées : date réelle, montant valide
+
+frontend-ppe/                Application Next.js (port 3000)
+  app/
+    page.tsx                 connexion et tableau de bord (KAN-12 / KAN-26)
+    saisie/page.tsx          KAN-19 : saisie des dépenses
+    revenus/page.tsx         KAN-18 : saisie des revenus
+    historique/page.tsx      KAN-29 : historique pluriannuel
+    electricite/page.tsx     KAN-32 : production photovoltaïque
+    projets/page.tsx         KAN-33 / KAN-37 : projets et droits
+    charges/page.tsx         KAN-22 : répartition des charges
+    statistiques/page.tsx    KAN-30 : graphiques financiers
+    tableau-de-bord/page.tsx KAN-28 : tableau de bord interactif
+    budgets/page.tsx         KAN-15 / KAN-17 : budget annuel et suivi
+    modifications/page.tsx   KAN-35 : journal des modifications
+    rapports/page.tsx        KAN-23 : rapports et exports CSV
+```
+
+Le détail du backend (installation de la base, endpoints, comptes de démo) est dans [`backend-ppe/README.md`](backend-ppe/README.md).
+
+### Catégories disponibles
+
+Les catégories sont lues dans la table `Categories`. Les formulaires proposent celles qui correspondent au type de mouvement (dépense ou revenu).
 
 ---
 
