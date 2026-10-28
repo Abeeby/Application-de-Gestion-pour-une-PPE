@@ -45,7 +45,7 @@ export function reponsePourErreurSql(error) {
     return {
       status: 500,
       corps: {
-        error: 'La base de données n’est pas à jour. Recréez-la avec BD.sql puis npm run seed (voir le README).',
+        error: 'La base de données n’est pas à jour par rapport à BD.sql. Lancez « npm run reset-db » dans backend-ppe, puis relancez le backend (voir le README).',
         code,
       },
     }
