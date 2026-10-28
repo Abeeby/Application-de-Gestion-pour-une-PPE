@@ -13,7 +13,9 @@ export async function listerBudgets() {
      FROM Budgets_Annuels ba
      LEFT JOIN Ligne_Budgets lb ON lb.id_budget_annuel = ba.id
      WHERE ba.id_ppe = ?
-     GROUP BY ba.id
+     -- Toutes les colonnes non agregees sont listees : sinon un serveur en
+     -- mode ONLY_FULL_GROUP_BY (MySQL 8 et MariaDB stricts) renvoie une erreur 500.
+     GROUP BY ba.id, ba.annee, ba.statut, ba.prevision_budget, ba.date_creation, ba.date_approbation
      ORDER BY ba.annee DESC`,
     [ID_PPE_DEFAUT],
   )

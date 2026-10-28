@@ -451,6 +451,34 @@ Les pages sont ensuite accessibles à ces adresses :
 
 ---
 
+## Dépannage : « Erreur 500 »
+
+La cause la plus fréquente est une **base créée avec une ancienne version de `BD.sql`**. Quand une fonctionnalité ajoute une table ou une colonne (ex. le journal KAN-35, le budget KAN-15), les bases déjà créées ne sont pas mises à jour toutes seules.
+
+Au démarrage, le backend compare la base à `BD.sql` et affiche dans le terminal ce qui manque :
+
+```
+!!! La base de donnees n est pas a jour par rapport a BD.sql !!!
+  Tables manquantes   : Historique
+  Colonnes manquantes : Budgets_Annuels.date_approbation
+```
+
+Pour corriger (efface les données de la base PPE et remet les données de démo) :
+
+```bash
+cd backend-ppe
+git pull
+mysql -u root -p < BD.sql
+npm run seed
+npm start
+```
+
+`http://localhost:3001/api/health` indique aussi si la base est à jour (`schema.aJour`). Pour voir le détail technique d'une erreur 500 dans la réponse, ajouter `NODE_ENV=development` dans `backend-ppe/.env`. Le détail s'affiche toujours dans le terminal du backend.
+
+L'application est testée sur **MySQL 8** et **MariaDB** (mode strict `ONLY_FULL_GROUP_BY` compris).
+
+---
+
 ## Lancer les tests et le lint
 
 Les tests utilisent le testeur intégré de Node. Installer les dépendances du backend avant de les lancer.

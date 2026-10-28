@@ -4,6 +4,7 @@
 // Tests : budgets.calcul.test.js
 
 import { ventilerDepense } from '../charges/charges.calcul.js'
+import { estMontantValide } from '../../validation/communes.js'
 
 // ---------------------------------------------------------------------------
 // 1. Cycle de vie du budget : brouillon -> soumis -> approuve
@@ -138,8 +139,8 @@ export function validerLignes(lignes, categoriesConnues) {
     dejaVues.add(categorie)
 
     const montant = ligne?.montant
-    if (typeof montant !== 'number' || !Number.isFinite(montant) || montant <= 0) {
-      erreurs.push(`${numero} : le montant doit être un nombre supérieur à 0`)
+    if (typeof montant !== 'number' || !estMontantValide(montant)) {
+      erreurs.push(`${numero} : le montant doit être un nombre supérieur à 0 (2 décimales, 99’999’999.99 au maximum)`)
     }
   })
 

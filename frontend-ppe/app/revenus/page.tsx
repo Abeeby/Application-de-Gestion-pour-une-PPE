@@ -5,6 +5,8 @@ import BanniereConnexion from '@/components/BanniereConnexion'
 import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
 import { FileText, Wallet, Upload, ArrowUpRight } from 'lucide-react'
 import MenuLateral from '@/components/MenuLateral'
+import BandeauConsultation from '@/components/BandeauConsultation'
+import { useUtilisateur } from '@/lib/useRole'
 import { dateDuJour, formatChf } from '@/lib/format'
 
 
@@ -30,6 +32,9 @@ const formaterDate = (dateIso: string) => {
 }
 
 export default function RevenusPage() {
+  // Saisie reservee a l'administrateur : le coproprietaire voit un bandeau
+  const utilisateur = useUtilisateur()
+  const estAdmin = utilisateur?.role === 'admin'
   const [options, setOptions] = useState<Options>({ categories: [], appartements: [] })
   const [revenus, setRevenus] = useState<Revenu[]>([])
   const [montant, setMontant] = useState('')
@@ -100,8 +105,8 @@ export default function RevenusPage() {
       setAppartement('')
       setMessage('Revenu enregistré')
       await chargerRevenus()
-    } catch {
-      setErreurs(['Le backend est indisponible'])
+    } catch (erreur) {
+      gererErreur(erreur)
     } finally {
       setChargement(false)
     }
@@ -129,8 +134,8 @@ export default function RevenusPage() {
       setMessage(`${data.importes} revenu(s) importé(s)`)
       await chargerRevenus()
       event.currentTarget.reset()
-    } catch {
-      setErreurs(['Le backend est indisponible'])
+    } catch (erreur) {
+      gererErreur(erreur)
     } finally {
       setChargement(false)
     }
@@ -200,6 +205,7 @@ export default function RevenusPage() {
             </div>
           </section>
 
+          {estAdmin ? (
           <section className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
             <form onSubmit={envoyerFormulaire} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-6 flex items-center justify-between">
@@ -293,6 +299,9 @@ export default function RevenusPage() {
               </form>
             </div>
           </section>
+          ) : utilisateur ? (
+            <BandeauConsultation quoi="les revenus enregistrés" />
+          ) : null}
 
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">

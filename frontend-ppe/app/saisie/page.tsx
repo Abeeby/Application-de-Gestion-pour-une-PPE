@@ -5,15 +5,17 @@ import BanniereConnexion from '@/components/BanniereConnexion'
 import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
 import { FileText, Wallet, ArrowDownRight, Trash2 } from 'lucide-react'
 import MenuLateral from '@/components/MenuLateral'
+import BandeauConsultation from '@/components/BandeauConsultation'
+import { useUtilisateur } from '@/lib/useRole'
 import { dateDuJour, formatChf, formatDate } from '@/lib/format'
 
 type Saisie = {
   id: number
   montant: number
   date: string
-  categorie: string
-  appartement: string
-  projet: string
+  categorie: string | null
+  appartement: string | null
+  projet: string | null
   justificatif: string
 }
 
@@ -37,6 +39,9 @@ function Messages({ erreurs, message }: { erreurs: string[]; message: string }) 
 }
 
 export default function Saisie() {
+  // Saisie reservee a l'administrateur : le coproprietaire voit un bandeau
+  const utilisateur = useUtilisateur()
+  const estAdmin = utilisateur?.role === 'admin'
   const [categories, setCategories] = useState<string[]>([])
   const [appartements, setAppartements] = useState<string[]>([])
   const [projets, setProjets] = useState<string[]>([])
@@ -118,8 +123,16 @@ export default function Saisie() {
     const chemin = params.size > 0 ? `/api/saisies?${params.toString()}` : '/api/saisies'
 
     apiFetch(chemin)
-      .then(res => (res.ok ? res.json() : []))
-      .then(data => setSaisies(data))
+      .then(async res => {
+        if (!res.ok) {
+          // ex. période inversée : le message s'affiche au-dessus du tableau
+          setZoneMessage('liste')
+          setErreurs(await lireErreurs(res))
+          setSaisies([])
+          return
+        }
+        setSaisies(await res.json())
+      })
       .catch(gererErreur)
   }
 
@@ -235,7 +248,7 @@ export default function Saisie() {
               </div>
               <p className="mb-2 text-3xl font-bold text-slate-900">{derniere ? formatChf(derniere.montant, false) : '—'}</p>
               <div className="flex items-center gap-2 text-xs">
-                <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-700">{derniere ? `${formatDate(derniere.date)} · ${derniere.categorie}` : 'Aucune dépense'}</span>
+                <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-700">{derniere ? `${formatDate(derniere.date)} · ${derniere.categorie ?? 'Sans catégorie'}` : 'Aucune dépense'}</span>
               </div>
             </div>
 
@@ -251,6 +264,7 @@ export default function Saisie() {
             </div>
           </section>
 
+          {estAdmin ? (
           <section className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
             <form onSubmit={envoyerFormulaire} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-6 flex items-center justify-between">
@@ -358,6 +372,9 @@ export default function Saisie() {
 
             </div>
           </section>
+          ) : utilisateur ? (
+            <BandeauConsultation quoi="les dépenses enregistrées" />
+          ) : null}
 
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -446,20 +463,20 @@ export default function Saisie() {
                     {saisies.map(s => (
                       <tr key={s.id} className="border-b border-slate-100">
                         <td className="px-3 py-3 text-slate-600">{formatDate(s.date)}</td>
-                        <td className="px-3 py-3 text-slate-700">{s.categorie}</td>
-                        <td className="px-3 py-3 text-slate-700">{s.appartement}</td>
-                        <td className="px-3 py-3 text-slate-700">{s.projet}</td>
+                        <td className="px-3 py-3 text-slate-700">{s.categorie ?? '—'}</td>
+                        <td className="px-3 py-3 text-slate-700">{s.appartement ?? '—'}</td>
+                        <td className="px-3 py-3 text-slate-700">{s.projet ?? '—'}</td>
                         <td className="px-3 py-3 text-slate-700">{s.justificatif || '-'}</td>
                         <td className="px-3 py-3 text-right font-semibold tabular-nums text-slate-900">{formatChf(s.montant)}</td>
                         <td className="px-3 py-3 text-right">
-                          <button
+                          {estAdmin && <button
                             type="button"
                             onClick={() => supprimerSaisie(s)}
                             aria-label="Supprimer la dépense"
                             className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
                           >
                             <Trash2 className="h-4 w-4" />
-                          </button>
+                          </button>}
                         </td>
                       </tr>
                     ))}

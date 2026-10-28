@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import BanniereConnexion from '@/components/BanniereConnexion'
-import { apiFetch, SessionExpireeError } from '@/lib/api'
+import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
 import MenuLateral from '@/components/MenuLateral'
 
 type Etape = {
@@ -102,7 +102,7 @@ export default function ProjetsPage() {
         setNonConnecte(true)
       } else {
         console.error('Erreur chargement données', error)
-        setErreurs(['Le backend est indisponible'])
+        setErreurs([messageErreur(error)])
       }
     } finally {
       setChargement(false)

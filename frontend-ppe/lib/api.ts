@@ -19,6 +19,19 @@ export class SessionExpireeError extends Error {
   }
 }
 
+/**
+ * Erreur 5xx du backend. Le message est celui renvoye par le serveur quand il
+ * en donne un (ex. « La base de données n’est pas à jour... »), sinon un
+ * message general. Avant, l'utilisateur voyait seulement « Erreur 500 » ou
+ * « Le backend est indisponible », sans savoir quoi faire.
+ */
+export class ErreurServeur extends Error {
+  constructor(message: string, public status: number) {
+    super(message)
+    this.name = 'ErreurServeur'
+  }
+}
+
 export function lireToken(): string | null {
   if (typeof window === 'undefined') return null
   return window.localStorage.getItem(CLE_TOKEN)
@@ -53,11 +66,20 @@ export async function apiFetch(chemin: string, options: RequestInit = {}): Promi
     throw new SessionExpireeError()
   }
 
+  if (reponse.status >= 500) {
+    const corps = await reponse.clone().json().catch(() => null)
+    const message = typeof corps?.error === 'string' && corps.error !== 'Erreur interne du serveur'
+      ? corps.error
+      : `Erreur du serveur (${reponse.status}). Regardez le terminal du backend pour le détail.`
+    throw new ErreurServeur(message, reponse.status)
+  }
+
   return reponse
 }
 
 /** Message a afficher a l'utilisateur pour une erreur d'appel API. */
 export function messageErreur(erreur: unknown): string {
-  if (erreur instanceof SessionExpireeError) return erreur.message
-  return 'Le backend est indisponible'
+  if (erreur instanceof SessionExpireeError || erreur instanceof ErreurServeur) return erreur.message
+  // fetch() leve une TypeError quand le serveur ne repond pas du tout
+  return 'Le backend est injoignable. Vérifiez qu’il est démarré (npm start dans backend-ppe).'
 }

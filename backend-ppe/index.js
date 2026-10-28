@@ -1,6 +1,8 @@
 import express from 'express'
 import { env, verifierEnv } from './src/config/env.js'
 import { verifierConnexionDb } from './src/db/pool.js'
+import { messageSchema, verifierSchema } from './src/db/schema.js'
+import { reponsePourErreurSql } from './src/db/erreurs.js'
 import { authRouter } from './src/modules/auth/auth.routes.js'
 import { projetsRouter } from './src/modules/projets/projets.routes.js'
 import { depensesRouter } from './src/modules/depenses/depenses.routes.js'
@@ -40,10 +42,13 @@ app.use(express.json())
 
 app.get('/api/health', async (req, res) => {
   const dbOk = await verifierConnexionDb()
+  const schema = dbOk ? await verifierSchema() : null
   res.status(dbOk ? 200 : 503).json({
     status: dbOk ? 'ok' : 'degraded',
     app: 'ppe-backend',
     database: dbOk ? 'connected' : 'unreachable',
+    // false = base a recreer avec BD.sql (les tables/colonnes manquantes sont listees)
+    schema: schema && { aJour: schema.ok, tablesManquantes: schema.tablesManquantes, colonnesManquantes: schema.colonnesManquantes },
     time: new Date().toISOString(),
   })
 })
@@ -73,7 +78,15 @@ app.use((error, req, res, next) => {
     return res.status(400).json({ erreurs: [message] })
   }
 
-  console.error(error)
+  // Erreurs de base de donnees connues : un message qui dit quoi faire
+  // (base pas a jour, donnee trop longue, serveur MySQL arrete...)
+  const reponseSql = reponsePourErreurSql(error)
+  if (reponseSql) {
+    if (reponseSql.status >= 500) console.error(`[${req.method} ${req.originalUrl}]`, error.code, error.sqlMessage ?? error.message)
+    return res.status(reponseSql.status).json(reponseSql.corps)
+  }
+
+  console.error(`[${req.method} ${req.originalUrl}]`, error)
 
   res.status(500).json({
     error: 'Erreur interne du serveur',
@@ -96,5 +109,8 @@ app.listen(env.port, async () => {
     console.warn('Attention : la base de donnees est injoignable. Verifiez votre fichier .env et que MySQL/MariaDB tourne.')
   } else {
     console.log('Connexion a la base de donnees OK.')
+    const schema = await verifierSchema()
+    if (schema.ok) console.log('Structure de la base conforme a BD.sql.')
+    else console.warn(messageSchema(schema))
   }
 })
