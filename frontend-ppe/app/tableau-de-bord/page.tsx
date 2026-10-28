@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { calculerTotaux, depensesParCategorie, evolutionMensuelle, filtrerTransactions } from './calculs'
 import type { Transaction, Filtres } from './calculs'
+import MenuLateral from '@/components/MenuLateral'
+import { formatChf } from '@/lib/format'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 const filtresVides: Filtres = { annee: '', categorie: '', appartement: '', projet: '' }
@@ -12,8 +14,9 @@ const bloc = { padding: 20, borderRadius: 12, backgroundColor: 'white', border: 
 const grille = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }
 const champ = { display: 'block', width: '100%', padding: 8, marginTop: 6, border: '1px solid #cbd5e1', borderRadius: 6 }
 
+// Format commun a toute l'application (CHF 1’500.00)
 function montantChf(montant: number) {
-  return `${montant.toFixed(2)} CHF`
+  return formatChf(montant)
 }
 
 export default function TableauDeBord() {
@@ -46,14 +49,14 @@ export default function TableauDeBord() {
           setConnexionRequise(true)
           return
         }
-        if (!session.ok) throw new Error('Impossible de vérifier la connexion. Vérifie le backend et la base de données.')
+        if (!session.ok) throw new Error('Impossible de vérifier la connexion. Service momentanément indisponible.')
 
         const urls = ['/api/saisies', '/api/revenus', '/api/saisies/options', '/api/revenus/options']
         const reponses = await Promise.all(urls.map(url => fetch(`${API_URL}${url}`, {
           headers: { Authorization: `Bearer ${token}` }, signal: controleur.signal,
         })))
         if (reponses.some(reponse => !reponse.ok)) {
-          throw new Error('Impossible de charger les données. Vérifie le backend et la connexion à MySQL.')
+          throw new Error('Impossible de charger les données. Service momentanément indisponible.')
         }
         const [depenses, revenus, optionsDepenses, optionsRevenus] = await Promise.all(reponses.map(reponse => reponse.json()))
         const lignes: Transaction[] = []
@@ -90,13 +93,14 @@ export default function TableauDeBord() {
   const parMois = evolutionMensuelle(lignes)
 
   return (
-    <main style={{ padding: 24, maxWidth: 1400, margin: 'auto' }}>
-      <Link href="/">← Tableau de bord principal</Link>
-      <h1 style={{ fontSize: 28, marginTop: 20 }}>Explorer les finances de la PPE</h1>
-      <p style={{ marginBottom: 24 }}>Combine les filtres pour consulter les revenus et les dépenses qui t’intéressent.</p>
+    <div className="flex min-h-screen bg-[#f5f7fb] font-sans text-slate-900">
+      <MenuLateral />
+      <main className="min-w-0 flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+      <h1 className="text-3xl font-bold text-slate-900">Explorer les finances</h1>
+      <p className="mb-6 mt-1 text-sm text-slate-500">Combinez les filtres pour consulter les revenus et les dépenses qui vous intéressent.</p>
 
       {chargement ? <p role="status">Chargement des données…</p> : connexionRequise ? (
-        <section style={bloc}><p>Connecte-toi pour consulter le tableau de bord.</p><Link href="/">Se connecter</Link></section>
+        <section style={bloc}><p>Connectez-vous pour consulter le tableau de bord.</p><Link href="/">Se connecter</Link></section>
       ) : erreur ? (
         <section style={bloc}><p role="alert" style={{ color: '#b91c1c' }}>{erreur}</p><button onClick={() => setActualisation(actualisation + 1)}>Réessayer</button></section>
       ) : (
@@ -163,6 +167,7 @@ export default function TableauDeBord() {
           )}
         </>
       )}
-    </main>
+      </main>
+    </div>
   )
 }

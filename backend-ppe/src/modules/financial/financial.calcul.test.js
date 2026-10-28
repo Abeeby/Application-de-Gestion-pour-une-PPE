@@ -79,3 +79,30 @@ test('validerLigneBudget refuse un montant nul, negatif ou absent', () => {
 test('validerLigneBudget refuse une categorie vide', () => {
   assert.deepStrictEqual(validerLigneBudget({ category: '  ', planned: 100 }), ['La catégorie est obligatoire'])
 })
+
+// --- Graphique mensuel du tableau de bord ---
+import { construireEvolutionMensuelle } from './financial.calcul.js'
+
+test('evolution mensuelle : toujours 12 mois, les mois vides valent 0', () => {
+  const mois = construireEvolutionMensuelle([{ mois: 3, type: 'depense', total: '1500.50' }])
+  assert.strictEqual(mois.length, 12)
+  assert.deepStrictEqual(mois[0], { mois: 1, recettes: 0, depenses: 0 })
+  assert.deepStrictEqual(mois[2], { mois: 3, recettes: 0, depenses: 1500.5 })
+})
+
+test('evolution mensuelle : recettes et depenses du meme mois restent separees', () => {
+  const mois = construireEvolutionMensuelle([
+    { mois: 9, type: 'recette', total: 6000 },
+    { mois: 9, type: 'depense', total: 450 },
+  ])
+  assert.deepStrictEqual(mois[8], { mois: 9, recettes: 6000, depenses: 450 })
+})
+
+test('evolution mensuelle : ignore les mois et types invalides', () => {
+  const mois = construireEvolutionMensuelle([
+    { mois: 0, type: 'depense', total: 10 },
+    { mois: 13, type: 'recette', total: 10 },
+    { mois: 5, type: 'autre', total: 10 },
+  ])
+  assert.ok(mois.every((m) => m.recettes === 0 && m.depenses === 0))
+})

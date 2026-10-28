@@ -102,3 +102,31 @@ test('KAN-12 : /api/auth/me renvoie l utilisateur du token signe', { skip: !cont
   assert.strictEqual(user.email, 'coproprietaire@ppe.fr')
   assert.strictEqual(user.role, 'owner')
 })
+
+test('revenus : un coproprietaire ne peut pas s ajouter d acomptes (403), mais peut les consulter', { skip: !contexte && raisonSaut }, async () => {
+  const { token } = await connecter('coproprietaire@ppe.fr', 'coprop1234')
+  const entetes = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+
+  const ecriture = await fetch(`${contexte.url}/api/revenus`, {
+    method: 'POST',
+    headers: entetes,
+    // Rien n'est enregistre : la requete est refusee avant la validation
+    body: JSON.stringify({ montant: 5000, date: '2026-10-01', categorie: 'Charges de copropriete', appartement: 'A1' }),
+  })
+  assert.strictEqual(ecriture.status, 403)
+
+  const lecture = await fetch(`${contexte.url}/api/revenus`, { headers: entetes })
+  assert.strictEqual(lecture.status, 200)
+})
+
+test('depenses : une date inexistante est refusee avec 400 (et non 500)', { skip: !contexte && raisonSaut }, async () => {
+  const { token } = await connecter('admin@ppe.fr', 'admin1234')
+  const response = await fetch(`${contexte.url}/api/saisies`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ montant: 100, date: '2026-02-31', categorie: 'Entretien', appartement: 'A1' }),
+  })
+  assert.strictEqual(response.status, 400)
+  const corps = await response.json()
+  assert.ok(corps.erreurs.some((e) => e.includes('date')))
+})

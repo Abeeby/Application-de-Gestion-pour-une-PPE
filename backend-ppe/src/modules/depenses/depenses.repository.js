@@ -1,6 +1,7 @@
 import { pool } from '../../db/pool.js'
 import { ID_PPE_DEFAUT } from '../../config/constants.js'
 import { resolveCategorieId, resolveLotId, resolveProjetId } from '../reference/reference.repository.js'
+import { versMontant } from '../../validation/communes.js'
 
 const SELECT_DEPENSE = `
   SELECT t.id, t.montant, t.date_transaction, c.libelle AS categorie, l.reference AS appartement,
@@ -84,7 +85,7 @@ export async function ajouterDepense(depense, db = pool) {
   const [resultat] = await db.query(
     `INSERT INTO Transactions (id_ppe, id_categorie, id_lot, id_projet, montant, date_transaction, description, type)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'depense')`,
-    [ID_PPE_DEFAUT, idCategorie, idLot, idProjet, Number(depense.montant), depense.date, depense.justificatif || ''],
+    [ID_PPE_DEFAUT, idCategorie, idLot, idProjet, versMontant(depense.montant), depense.date, depense.justificatif || ''],
   )
 
   return getDepenseById(resultat.insertId, db)

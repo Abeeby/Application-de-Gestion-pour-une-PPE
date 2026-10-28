@@ -1,224 +1,182 @@
 'use client'
 
-import { useState } from 'react'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts'
-import { LayoutDashboard, FileText, Zap, BarChart2, Folder, Wallet, Settings, LogOut, Bell, Plus, Activity } from 'lucide-react'
-import Link from 'next/link'
+// KAN-30 : graphiques financiers de la PPE.
+//
+// Correction : la page affichait uniquement des donnees inventees (aucun
+// appel a l'API) et les boutons Mensuel / Trimestriel / Annuel ne
+// changeaient rien. Les deux graphiques lisent maintenant les vraies
+// donnees de l'exercice choisi :
+//   - GET /api/financial/mensuel   -> revenus et depenses cumules
+//   - GET /api/depenses/historique -> repartition des depenses par categorie
 
-const evolutionData = [
-  { name: 'Jan', revenus: 12000, depenses: 8000 },
-  { name: 'Fév', revenus: 15000, depenses: 9500 },
-  { name: 'Mar', revenus: 18000, depenses: 10200 },
-  { name: 'Avr', revenus: 22000, depenses: 11000 },
-  { name: 'Mai', revenus: 28000, depenses: 15000 },
-  { name: 'Juin', revenus: 25000, depenses: 14000 },
-]
+import { useEffect, useState } from 'react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import BanniereConnexion from '@/components/BanniereConnexion'
+import MenuLateral from '@/components/MenuLateral'
+import { apiFetch, messageErreur, SessionExpireeError } from '@/lib/api'
+import { formatChf } from '@/lib/format'
 
-const repartitionData = [
-  { name: 'Entretien & Rénovations', value: 55, fill: '#3b82f6' }, // blue-500
-  { name: 'Électricité & Chauffage', value: 30, fill: '#f59e0b' }, // amber-500
-  { name: 'Assurances & Admin', value: 15, fill: '#ef4444' }, // red-500
-]
+type Mois = { mois: number; recettes: number; depenses: number }
+type LigneHistorique = { annee: number; categorie: string | null; montant: number }
+
+const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
+const COULEURS = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b']
+const ANNEE_COURANTE = new Date().getFullYear()
+const ANNEES = Array.from({ length: 5 }, (_, i) => ANNEE_COURANTE - i)
 
 export default function StatistiquesPage() {
-  const [timeframe, setTimeframe] = useState('mensuel')
+  const [annee, setAnnee] = useState(ANNEE_COURANTE)
+  const [mois, setMois] = useState<Mois[]>([])
+  const [categories, setCategories] = useState<{ nom: string; montant: number }[]>([])
+  const [nonConnecte, setNonConnecte] = useState(false)
+  const [erreur, setErreur] = useState('')
+
+  useEffect(() => {
+    let actif = true
+    Promise.all([
+      apiFetch(`/api/financial/mensuel?annee=${annee}`),
+      apiFetch(`/api/depenses/historique?anneeDebut=${annee}&anneeFin=${annee}`),
+    ])
+      .then(async ([reponseMois, reponseHistorique]) => {
+        if (!reponseMois.ok || !reponseHistorique.ok) throw new Error('HTTP')
+        const { mois: donneesMois } = await reponseMois.json()
+        const historique: LigneHistorique[] = await reponseHistorique.json()
+        if (!actif) return
+
+        const parCategorie = new Map<string, number>()
+        for (const ligne of historique) {
+          const nom = ligne.categorie ?? 'Sans catégorie'
+          parCategorie.set(nom, (parCategorie.get(nom) ?? 0) + Number(ligne.montant))
+        }
+        setMois(donneesMois)
+        setCategories(
+          [...parCategorie.entries()]
+            .map(([nom, montant]) => ({ nom, montant }))
+            .filter((c) => c.montant > 0)
+            .sort((a, b) => b.montant - a.montant),
+        )
+        setErreur('')
+      })
+      .catch((e: unknown) => {
+        if (!actif) return
+        if (e instanceof SessionExpireeError) setNonConnecte(true)
+        else setErreur(messageErreur(e))
+      })
+    return () => {
+      actif = false
+    }
+  }, [annee])
+
+  // Cumul depuis le 1er janvier, jusqu'au mois en cours pour l'annee courante
+  const dernierMois = annee === ANNEE_COURANTE ? new Date().getMonth() + 1 : 12
+  const evolution = mois
+    .filter((m) => m.mois <= dernierMois)
+    .map((m, index, liste) => {
+      const precedents = liste.slice(0, index + 1)
+      return {
+        nom: MOIS[m.mois - 1],
+        revenus: precedents.reduce((s, x) => s + x.recettes, 0),
+        depenses: precedents.reduce((s, x) => s + x.depenses, 0),
+      }
+    })
+  const totalDepenses = categories.reduce((s, c) => s + c.montant, 0)
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
-      {/* Sidebar */}
-      <aside className="hidden w-56 flex-shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
-        <div className="flex items-center gap-3 p-6">
-          <div className="rounded-lg bg-blue-600 p-2 text-sm font-bold text-white">PPE</div>
-          <div>
-            <h2 className="text-sm font-bold leading-tight text-slate-900">PPE Gestion</h2>
-            <p className="text-xs text-slate-500">Gestion de copropriété</p>
-          </div>
-        </div>
+    <div className="flex min-h-screen bg-[#f5f7fb] font-sans text-slate-900">
+      <MenuLateral />
 
-        <div className="px-4 pb-3">
-          <button className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-medium text-slate-700 shadow-sm">
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> Les Terrasses</span>
-            <span className="text-slate-400">▼</span>
-          </button>
-        </div>
-
-        <div className="px-4 pb-3">
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5 text-sm font-semibold text-orange-700 shadow-sm transition hover:bg-orange-100">
-            <Plus className="h-4 w-4" /> Nouvelle PPE
-          </button>
-        </div>
-
-        <nav className="space-y-1 px-4 pb-2 pt-1">
-          <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <LayoutDashboard className="h-5 w-5" /> Tableau de bord
-          </Link>
-          <Link href="/electricite" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Zap className="h-5 w-5" /> Électricité
-          </Link>
-          <Link href="/statistiques" className="flex items-center gap-3 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-medium text-white shadow-sm transition">
-            <Activity className="h-5 w-5 fill-current" /> Statistiques
-          </Link>
-          <Link href="/saisie" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <FileText className="h-5 w-5" /> Dépenses
-          </Link>
-          <Link href="/revenus" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Wallet className="h-5 w-5" /> Revenus
-          </Link>
-          <Link href="/projets" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Folder className="h-5 w-5" /> Projets
-          </Link>
-          <Link href="/historique" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <BarChart2 className="h-5 w-5" /> Historique
-          </Link>
-        </nav>
-
-        <div className="mt-2 space-y-1 border-t border-slate-200 p-4">
-          <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
-            <Settings className="h-5 w-5" /> Paramètres
-          </a>
-          <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50">
-            <LogOut className="h-5 w-5" /> Déconnexion
-          </Link>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="min-w-0 flex-1 overflow-auto">
-        <div className="mx-auto max-w-7xl space-y-6 p-4 sm:space-y-8 sm:p-6 lg:p-8">
-          
-          {/* Header */}
+      <main className="min-w-0 flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto max-w-7xl space-y-6">
           <header className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Statistiques & Rapports</h1>
-              <p className="mt-1 break-words text-sm text-slate-500 sm:text-base">Analyses financières et consommations de la PPE</p>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Statistiques</h1>
+              <p className="mt-1 text-sm text-slate-500">Évolution des finances et répartition des dépenses de l’exercice.</p>
             </div>
-            <div className="flex w-full flex-wrap items-center gap-2 sm:gap-3 md:w-auto md:justify-end">
-              <div className="bg-white border border-slate-200 px-4 py-2 rounded-full text-sm font-medium text-slate-700 shadow-sm hidden sm:block">
-                Mardi, 25 août 2026
-              </div>
-              
-              <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
-                <button 
-                  onClick={() => setTimeframe('mensuel')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${timeframe === 'mensuel' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:text-slate-900'}`}
-                >
-                  Mensuel
-                </button>
-                <button 
-                  onClick={() => setTimeframe('trimestriel')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${timeframe === 'trimestriel' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:text-slate-900'}`}
-                >
-                  Trimestriel
-                </button>
-                <button 
-                  onClick={() => setTimeframe('annuel')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${timeframe === 'annuel' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:text-slate-900'}`}
-                >
-                  Annuel
-                </button>
-              </div>
-
-              <button className="bg-white border border-slate-200 p-2 rounded-full text-slate-600 shadow-sm hover:bg-slate-50 transition">
-                <Bell className="h-5 w-5" />
-              </button>
-            </div>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+              Exercice
+              <select
+                value={annee}
+                onChange={(e) => setAnnee(Number(e.target.value))}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500"
+              >
+                {ANNEES.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </label>
           </header>
 
-          {/* Content Grid */}
-          <section className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] sm:gap-6">
-            
-            {/* Chart Evolution */}
-            <div className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          {nonConnecte && <BanniereConnexion />}
+          {erreur && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{erreur}</p>}
+
+          <section className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row">
-                <div className="min-w-0">
-                  <h2 className="text-lg font-bold text-slate-900">Évolution financière de la PPE</h2>
-                  <p className="break-words text-sm text-slate-500">Revenus vs Dépenses cumulés sur l'exercice</p>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Évolution financière</h2>
+                  <p className="text-sm text-slate-500">Revenus et dépenses cumulés depuis le 1er janvier {annee}</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium text-slate-600">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div> Revenus
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-rose-500"></div> Dépenses
-                  </div>
+                <div className="flex items-center gap-4 text-sm font-medium text-slate-600">
+                  <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-emerald-500" /> Revenus</span>
+                  <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-rose-500" /> Dépenses</span>
                 </div>
               </div>
 
-              <div className="flex-1 min-h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={evolutionData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                    <Tooltip 
-                      cursor={{stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3'}}
-                      contentStyle={{borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                      itemStyle={{color: '#0f172a', fontWeight: '500'}}
-                    />
-                    <Line type="monotone" dataKey="revenus" name="Revenus" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} />
-                    <Line type="monotone" dataKey="depenses" name="Dépenses" stroke="#f43f5e" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#f43f5e', stroke: '#fff', strokeWidth: 2 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Repartition */}
-            <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-              <h2 className="text-lg font-bold text-slate-900 mb-6">Répartition des coûts</h2>
-              
-              <div className="flex flex-col items-center justify-center min-h-[350px]">
-                <div className="h-48 w-full max-w-[250px] relative -mt-8">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={repartitionData}
-                        cx="50%"
-                        cy="100%"
-                        startAngle={180}
-                        endAngle={0}
-                        innerRadius="60%"
-                        outerRadius="100%"
-                        paddingAngle={5}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {repartitionData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                        itemStyle={{color: '#0f172a', fontWeight: '500'}}
-                      />
-                    </PieChart>
+              <div className="min-h-[350px] flex-1">
+                {evolution.every((m) => m.revenus === 0 && m.depenses === 0) ? (
+                  <div className="flex h-[350px] items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-400">
+                    Aucun mouvement en {annee}
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={350}>
+                    <LineChart data={evolution} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="nom" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} width={60}
+                        tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
+                      <Tooltip formatter={(v) => formatChf(Number(v), false)} />
+                      <Line type="monotone" dataKey="revenus" name="Revenus" stroke="#10b981" strokeWidth={3} dot={false} />
+                      <Line type="monotone" dataKey="depenses" name="Dépenses" stroke="#f43f5e" strokeWidth={3} dot={false} />
+                    </LineChart>
                   </ResponsiveContainer>
-                </div>
-                
-                <div className="w-full space-y-4 mt-8">
-                  {repartitionData.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.fill }}></div>
-                        <span className="text-sm font-medium text-slate-700">{item.name}</span>
-                      </div>
-                      <span className="text-sm font-bold text-slate-900">{item.value}%</span>
-                    </div>
-                  ))}
-                </div>
+                )}
               </div>
             </div>
 
+            <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-1 text-lg font-bold text-slate-900">Répartition des dépenses</h2>
+              <p className="mb-4 text-sm text-slate-500">Total {annee} : {formatChf(totalDepenses, false)}</p>
+
+              {categories.length === 0 ? (
+                <p className="py-16 text-center text-sm text-slate-400">Aucune dépense en {annee}</p>
+              ) : (
+                <>
+                  <div className="h-48 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={categories} dataKey="montant" nameKey="nom" innerRadius="55%" outerRadius="90%" paddingAngle={3} stroke="none">
+                          {categories.map((c, i) => (
+                            <Cell key={c.nom} fill={COULEURS[i % COULEURS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v) => formatChf(Number(v), false)} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ul className="mt-4 space-y-2.5">
+                    {categories.map((c, i) => (
+                      <li key={c.nom} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="flex min-w-0 items-center gap-2.5">
+                          <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: COULEURS[i % COULEURS.length] }} />
+                          <span className="truncate font-medium text-slate-700">{c.nom}</span>
+                        </span>
+                        <span className="font-bold tabular-nums text-slate-900">{Math.round((c.montant / totalDepenses) * 100)} %</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
           </section>
         </div>
       </main>

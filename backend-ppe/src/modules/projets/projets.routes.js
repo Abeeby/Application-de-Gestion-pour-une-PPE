@@ -8,6 +8,12 @@ import { getDroitsUtilisateur, statutsProjet, validerProjet } from './projets.va
 
 export const projetsRouter = Router()
 
+// Un identifiant doit etre un entier : MySQL convertissait '1abc' en 1, donc
+// DELETE /:id avec '1abc' aurait supprime l'element 1.
+projetsRouter.param('id', (req, res, next, id) =>
+  /^\d+$/.test(id) ? next() : res.status(400).json({ error: 'Identifiant invalide' }),
+)
+
 // --- KAN-8 : Gestion des projets specifiques ---
 // KAN-37 : Gestion des droits (RBAC Administrateur vs Copropriétaire)
 // KAN-38 : Validations et tests fonctionnels
@@ -69,7 +75,9 @@ projetsRouter.put('/:id', requireAuth, requireRole('admin'), async (req, res, ne
     if (!existant) {
       return res.status(404).json({ error: 'Projet introuvable' })
     }
-    const erreurs = validerProjet(req.body ?? {}, { isUpdate: true })
+    // On valide le projet tel qu'il sera APRES modification : sinon une date
+    // de fin seule n'etait jamais comparee a la date de debut deja en base.
+    const erreurs = validerProjet({ dateDebut: existant.dateDebut, ...(req.body ?? {}) }, { isUpdate: true })
     if (erreurs.length > 0) {
       return res.status(400).json({ erreurs })
     }

@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
 import BanniereConnexion from '@/components/BanniereConnexion'
 import { apiFetch, SessionExpireeError } from '@/lib/api'
+import MenuLateral from '@/components/MenuLateral'
 
 type Etape = {
   titre: string
@@ -110,13 +110,15 @@ export default function ProjetsPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial depuis l'API
     void chargerDonnees()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule fois a l'ouverture de la page
   }, [])
 
   // Ouvrir la modale pour créer un projet
   const ouvrirCreation = () => {
     if (!droits?.canCreate) {
-      alert('Action interdite : seuls les administrateurs peuvent créer un projet (KAN-37)')
+      alert('Action interdite : seuls les administrateurs peuvent créer un projet')
       return
     }
     setProjetEnEdition(null)
@@ -136,7 +138,7 @@ export default function ProjetsPage() {
   // Ouvrir la modale pour modifier un projet
   const ouvrirEdition = (p: Projet) => {
     if (!droits?.canEdit) {
-      alert('Action interdite : seuls les administrateurs peuvent modifier un projet (KAN-37)')
+      alert('Action interdite : seuls les administrateurs peuvent modifier un projet')
       return
     }
     setProjetEnEdition(p)
@@ -189,7 +191,7 @@ export default function ProjetsPage() {
         } else if (data.error) {
           setErreurs([data.error])
         } else {
-          setErreurs(['Une erreur est survenue lors de l enregistrement'])
+          setErreurs(['Une erreur est survenue lors de l’enregistrement'])
         }
         return
       }
@@ -205,20 +207,20 @@ export default function ProjetsPage() {
       if (projetEnEdition) {
         setProjetSelectionne(data)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof SessionExpireeError) {
         setModalOuverte(false)
         setNonConnecte(true)
         return
       }
-      setErreurs([err.message || 'Erreur réseau lors de la sauvegarde'])
+      setErreurs([err instanceof Error && err.message ? err.message : 'Erreur réseau lors de la sauvegarde'])
     }
   }
 
   // Supprimer un projet
   const handleSupprimer = async (p: Projet) => {
     if (!droits?.canDelete) {
-      alert('Action interdite : seuls les administrateurs peuvent supprimer un projet (KAN-37)')
+      alert('Action interdite : seuls les administrateurs peuvent supprimer un projet')
       return
     }
 
@@ -237,12 +239,12 @@ export default function ProjetsPage() {
         setProjetSelectionne(null)
       }
       await chargerDonnees()
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof SessionExpireeError) {
         setNonConnecte(true)
         return
       }
-      alert(err.message)
+      alert(err instanceof Error ? err.message : 'Erreur réseau lors de la suppression')
     }
   }
 
@@ -262,30 +264,13 @@ export default function ProjetsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
+    <div className="flex min-h-screen bg-[#f5f7fb] font-sans text-slate-900">
+      <MenuLateral />
+      <main className="min-w-0 flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Barre de navigation supérieure */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <div className="flex items-center space-x-3">
-            <Link
-              href="/"
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-            >
-              ← Tableau de bord
-            </Link>
-            <Link
-              href="/saisie"
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-            >
-              Saisie dépenses
-            </Link>
-            <Link
-              href="/historique"
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-            >
-              Historique
-            </Link>
-          </div>
+          <p className="text-sm font-semibold text-slate-700">Projets de la PPE</p>
 
           {/* KAN-12 : rôle de la session réelle (remplace l'ancien sélecteur qui se
               connectait sans mot de passe). Pour tester l'autre rôle : se
@@ -305,7 +290,7 @@ export default function ProjetsPage() {
             <div className="flex items-center space-x-2">
               <span className="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">PPE Les Terrasses</span>
               <span className="text-slate-300">•</span>
-              <span className="text-xs text-slate-500">KAN-8 Projets Spécifiques</span>
+              <span className="text-xs text-slate-500">Projets spécifiques</span>
             </div>
             <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900">Projets PPE</h1>
             <p className="mt-1 text-sm text-slate-600">
@@ -314,16 +299,16 @@ export default function ProjetsPage() {
           </div>
 
           <div className="flex items-center space-x-3">
-            {/* Badge Rôle KAN-37 */}
-            <div
+            {/* Badge Rôle KAN-37 (rien tant que les droits ne sont pas connus) */}
+            {droits && <div
               className={`inline-flex items-center rounded-full px-3.5 py-1 text-xs font-semibold ring-1 ring-inset ${
                 droits?.estAdmin
                   ? 'bg-blue-50 text-blue-700 ring-blue-600/20'
                   : 'bg-amber-50 text-amber-700 ring-amber-600/20'
               }`}
             >
-              {droits?.estAdmin ? 'Administrateur (Droits complets)' : 'Copropriétaire (Lecture seule)'}
-            </div>
+              {droits.estAdmin ? 'Administrateur (Droits complets)' : 'Copropriétaire (Lecture seule)'}
+            </div>}
 
             {/* Bouton Nouveau projet KAN-37 (conditionnel selon rôle) */}
             {droits?.canCreate ? (
@@ -352,9 +337,9 @@ export default function ProjetsPage() {
           <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900 shadow-sm">
             <div className="flex items-center space-x-2">
               <p>
-                <strong>Mode consultation (Copropriétaire) :</strong> Vous pouvez consulter la liste et l avancement
+                <strong>Mode consultation (Copropriétaire) :</strong> Vous pouvez consulter la liste et l’avancement
                 détaillé des projets extraordinaires. La création, modification et suppression de projets sont réservées
-                à l administrateur de la PPE (règles de gestion des droits KAN-37).
+                à l’administrateur de la PPE.
               </p>
             </div>
           </div>
@@ -367,6 +352,10 @@ export default function ProjetsPage() {
         )}
 
         {/* Grille des projets (Maquette Figma Page 6) */}
+        {chargement && projets.length === 0 && <p className="text-sm text-slate-500">Chargement des projets…</p>}
+        {!chargement && !nonConnecte && projets.length === 0 && (
+          <p className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Aucun projet pour le moment.</p>
+        )}
         <section className="grid gap-6 md:grid-cols-3">
           {projets.map((p) => {
             const estSelectionne = projetSelectionne?.id === p.id
@@ -729,6 +718,7 @@ export default function ProjetsPage() {
           </div>
         )}
       </div>
-    </main>
+      </main>
+    </div>
   )
 }

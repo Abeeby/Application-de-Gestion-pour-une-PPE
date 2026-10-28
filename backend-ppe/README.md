@@ -112,6 +112,8 @@ dans la sortie de la commande, également listés ici pour référence dev) :
   cours par défaut, `400` si l'année est invalide) — voir le détail ci-dessous
 - `GET /api/financial/accounts` : compte unique calculé depuis les transactions
 - `GET /api/financial/transactions` : dernières transactions (recettes + dépenses)
+- `GET /api/financial/mensuel?annee=2026` : recettes et dépenses de chaque mois
+  (12 mois, graphique du tableau de bord et des statistiques)
 - `GET /api/financial/budgets` : budgets annuels et taux d'usage réel
 - `POST /api/financial/budgets` : création/mise à jour d'une ligne de budget
   (admin, montant > 0 obligatoire)
@@ -153,8 +155,10 @@ Règles de validation (`validerDepenseAvecListes`, testées dans
 
 ## Saisie des revenus (KAN-18)
 
-- `GET /api/revenus/options`, `GET /api/revenus`, `POST /api/revenus`
-- `POST /api/revenus/import` : import CSV/Excel
+- `GET /api/revenus/options`, `GET /api/revenus` : admin et copropriétaire
+- `POST /api/revenus` et `POST /api/revenus/import` (CSV/Excel, 5 Mo max) :
+  admin seulement (403 sinon). L'import est « tout ou rien » : si une ligne
+  est invalide, aucune n'est enregistrée.
 
 ## Gestion des projets (KAN-8 / KAN-33 / KAN-37 / KAN-38)
 

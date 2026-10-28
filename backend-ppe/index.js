@@ -63,6 +63,16 @@ app.use('/api/rapports', rapportsRouter)
 // Gestionnaire d'erreurs centralise : toute erreur inattendue (SQL, etc.)
 // remonte ici via next(error) plutot que de faire planter le process.
 app.use((error, req, res, next) => {
+  // Erreurs causees par la requete du client : 400 avec un message clair
+  // (avant : 500 avec la pile d'appels du serveur)
+  if (error.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Le corps de la requête n’est pas un JSON valide' })
+  }
+  if (error.name === 'MulterError') {
+    const message = error.code === 'LIMIT_FILE_SIZE' ? 'Fichier trop volumineux (5 Mo maximum)' : 'Fichier refusé'
+    return res.status(400).json({ erreurs: [message] })
+  }
+
   console.error(error)
 
   res.status(500).json({

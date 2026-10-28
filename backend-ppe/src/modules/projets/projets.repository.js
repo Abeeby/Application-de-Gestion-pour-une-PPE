@@ -26,8 +26,9 @@ function versProjetPublic(ligne, etapes, depense) {
     dateDebut: ligne.date_debut,
     dateFin: ligne.date_fin ?? '',
     etapes,
-    soldeRestant: Math.max(0, budgetTotal - depense),
-    depassement: depense > budgetTotal ? depense - budgetTotal : 0,
+    // Arrondi au centime (1000 - 333.33 donnait 666.6700000000001)
+    soldeRestant: Math.max(0, Math.round((budgetTotal - depense) * 100) / 100),
+    depassement: depense > budgetTotal ? Math.round((depense - budgetTotal) * 100) / 100 : 0,
   }
 }
 

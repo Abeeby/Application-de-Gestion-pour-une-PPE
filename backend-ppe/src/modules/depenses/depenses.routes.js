@@ -9,6 +9,12 @@ import { validerDepense } from './depenses.validation.js'
 
 export const depensesRouter = Router()
 
+// Un identifiant doit etre un entier : MySQL convertissait '1abc' en 1, donc
+// DELETE /:id avec '1abc' aurait supprime l'element 1.
+depensesRouter.param('id', (req, res, next, id) =>
+  /^\d+$/.test(id) ? next() : res.status(400).json({ error: 'Identifiant invalide' }),
+)
+
 // --- KAN-19 : module de saisie des depenses ---
 // KAN-35 : routes protegees (il faut savoir QUI agit pour l'historique),
 // lecture admin + coproprietaire, ecriture admin seulement (meme regle que

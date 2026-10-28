@@ -7,6 +7,7 @@
 // chercher les listes courantes en base puis delegue a la fonction pure.
 
 import { getCategoriesParType, getLotsReferences, getProjetsNoms } from '../reference/reference.repository.js'
+import { estDateValide, estMontantValide } from '../../validation/communes.js'
 
 /**
  * @param {object} depense
@@ -15,14 +16,14 @@ import { getCategoriesParType, getLotsReferences, getProjetsNoms } from '../refe
  */
 export function validerDepenseAvecListes(depense = {}, { categories, appartements, projets }) {
   const erreurs = []
-  const montant = Number(depense.montant)
-
-  if (!montant || montant <= 0) {
-    erreurs.push('Le montant doit etre un nombre superieur a 0')
+  if (!estMontantValide(depense.montant)) {
+    erreurs.push('Le montant doit etre un nombre superieur a 0 (2 decimales maximum)')
   }
 
   if (!depense.date) {
     erreurs.push('La date est obligatoire')
+  } else if (!estDateValide(depense.date)) {
+    erreurs.push('La date doit etre une date valide au format AAAA-MM-JJ')
   }
 
   if (!categories.includes(depense.categorie)) {

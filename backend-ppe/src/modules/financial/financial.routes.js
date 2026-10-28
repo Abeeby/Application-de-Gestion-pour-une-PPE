@@ -4,6 +4,7 @@ import {
   ajouterLigneBudget,
   getAccounts,
   getBudgets,
+  getEvolutionMensuelle,
   getHistoriqueDepenses,
   getSummary,
   getTransactionsRecentes,
@@ -34,7 +35,19 @@ financialRouter.get('/summary', requireAuth, requireRole('admin', 'owner'), asyn
     const annee = lireAnnee(req.query.annee)
     if (annee === null) return res.status(400).json({ error: 'Année invalide' })
 
-    res.json({ user: req.user, summary: await getSummary(annee) })
+    res.json({ user: req.user, summary: await getSummary(annee, { inclureBrouillon: req.user.role === 'admin' }) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Graphique "Revenus & depenses" du tableau de bord : 12 mois de l'exercice
+financialRouter.get('/mensuel', requireAuth, requireRole('admin', 'owner'), async (req, res, next) => {
+  try {
+    const annee = lireAnnee(req.query.annee)
+    if (annee === null) return res.status(400).json({ error: 'Année invalide' })
+
+    res.json({ annee, mois: await getEvolutionMensuelle(annee) })
   } catch (error) {
     next(error)
   }
@@ -61,7 +74,7 @@ financialRouter.get('/budgets', requireAuth, requireRole('admin', 'owner'), asyn
     const annee = lireAnnee(req.query.annee)
     if (annee === null) return res.status(400).json({ error: 'Année invalide' })
 
-    res.json({ budgets: await getBudgets(annee) })
+    res.json({ budgets: await getBudgets(annee, { inclureBrouillon: req.user.role === 'admin' }) })
   } catch (error) {
     next(error)
   }
